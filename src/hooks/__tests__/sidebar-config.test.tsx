@@ -22,10 +22,6 @@ import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { checkIsActive } from '@/components/layout/lib/url-utils'
-import {
-  parseSidebarModulesAdmin,
-  serializeSidebarModulesAdmin,
-} from '@/features/system-settings/maintenance/config'
 import { useAuthStore } from '@/stores/auth-store'
 
 import { useSidebarConfig } from '../use-sidebar-config'
@@ -121,21 +117,6 @@ describe('security sidebar visibility', () => {
 })
 
 describe('audit log sidebar entry', () => {
-  it('admin settings default Audit Logs to visible and preserve its independent toggle when saved', () => {
-    const config = parseSidebarModulesAdmin(
-      '{"console":{"enabled":true,"log":true}}'
-    )
-    expect(config.console.audit).toBe(true)
-    config.console.audit = false
-    const saved = parseSidebarModulesAdmin(serializeSidebarModulesAdmin(config))
-    const { result } = sidebarFor(saved)
-    const titles = result.current
-      .flatMap((group) => group.items)
-      .map((item) => item.title)
-    expect(titles).not.toContain('Audit Logs')
-    expect(titles).toContain('Usage Logs')
-  })
-
   it('legacy configurations show a separate Audit Logs link immediately after Usage Logs', () => {
     const { result } = sidebarFor(
       { console: { enabled: true, log: true } },

@@ -18,29 +18,20 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import {
   Activity,
-  Box,
   ClipboardList,
-  CreditCard,
   FileText,
   FlaskConical,
   Key,
   LayoutDashboard,
   ListTodo,
   MessageSquare,
-  PlugZap,
-  Radio,
-  ServerCog,
-  Settings,
   ShieldCheck,
-  Ticket,
   User,
-  Users,
   Wallet,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import type { SidebarData } from '@/components/layout/types'
-import { ROLE } from '@/lib/roles'
 
 /**
  * Root navigation groups for the application sidebar.
@@ -128,55 +119,7 @@ export function useSidebarData(): SidebarData {
           },
         ],
       },
-      {
-        id: 'admin',
-        title: t('Admin'),
-        items: [
-          {
-            title: t('Channels'),
-            url: '/channels',
-            icon: Radio,
-          },
-          {
-            title: t('Models'),
-            url: '/models/metadata',
-            icon: Box,
-          },
-          {
-            title: t('Users'),
-            url: '/users',
-            icon: Users,
-          },
-          {
-            title: t('Redemption Codes'),
-            url: '/redemption-codes',
-            icon: Ticket,
-          },
-          {
-            title: t('Subscriptions'),
-            url: '/subscriptions',
-            icon: CreditCard,
-          },
-          {
-            title: t('System Info'),
-            url: '/system-info',
-            icon: ServerCog,
-            requiredRole: ROLE.SUPER_ADMIN,
-          },
-          {
-            title: t('Task Plugins'),
-            url: '/task-plugins',
-            icon: PlugZap,
-            requiredRole: ROLE.SUPER_ADMIN,
-          },
-          {
-            title: t('System Settings'),
-            url: '/system-settings/site',
-            activeUrls: ['/system-settings'],
-            icon: Settings,
-          },
-        ],
-      },
+      // [user-ui] 管理分组（Channels/Models/Users/...）已移除，管理在官方 UI 完成
     ],
   }
 }

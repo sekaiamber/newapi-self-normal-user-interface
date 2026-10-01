@@ -40,7 +40,7 @@ export { TopNav } from './components/top-nav'
 export { MobileDrawer } from './components/mobile-drawer'
 
 // Configuration
-export { SYSTEM_SETTINGS_VIEW } from './config/system-settings.config'
+// [user-ui] SYSTEM_SETTINGS_VIEW 导出已移除
 export { defaultTopNavLinks } from './config/top-nav.config'
 
 // Constants

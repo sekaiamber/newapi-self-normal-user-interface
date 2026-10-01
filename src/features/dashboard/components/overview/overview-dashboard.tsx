@@ -88,7 +88,6 @@ type DashboardActionPath =
   | '/keys'
   | '/wallet'
   | '/playground'
-  | '/channels'
   | '/usage-logs'
   | '/pricing'
 
@@ -533,18 +532,12 @@ export function OverviewDashboard() {
 
   const quickActions = useMemo<QuickAction[]>(
     () => [
+      // [user-ui] "Channels" 快捷入口（管理员）已移除
       {
         title: t('API Keys'),
         description: t('Create a key for your app or service'),
         to: '/keys',
         icon: KeyRound,
-      },
-      {
-        title: t('Channels'),
-        description: t('Configure upstream providers and routing.'),
-        to: '/channels',
-        icon: RadioTower,
-        adminOnly: true,
       },
       {
         title: t('Usage Logs'),
