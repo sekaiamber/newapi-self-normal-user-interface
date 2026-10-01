@@ -1,0 +1,25 @@
+newapi-self-normal-user-interface
+Copyright (C) 2026 sekaiamber
+
+This project is a derivative work of the New API web frontend:
+
+  Upstream:  https://github.com/QuantumNous/new-api  (directory web/)
+  Version:   tag v1.0.0-rc.37, commit 385d2dfd10d821b25c8a6766bd16eea248cb1652
+  Copyright: Copyright (C) 2023-2026 QuantumNous
+  License:   GNU Affero General Public License v3.0 (see LICENSE)
+
+The upstream tree was imported unmodified in the commit
+"Import New API web frontend @ v1.0.0-rc.37"; every later change is
+recorded in this repository's git history. The upstream copyright header
+is retained in each source file.
+
+Additional upstream file:
+  contracts/billingexpr/frontend_simulation.json
+    from new-api pkg/billingexpr/testdata/frontend_simulation.json @ v1.0.0-rc.37
+
+Modifications: admin-only features removed so that this UI serves regular
+users only; administration stays in the official New API UI.
+
+This program is distributed under the GNU AGPLv3. If you run a modified
+version as a network service, you must offer its Corresponding Source to
+its users (AGPLv3 section 13).
