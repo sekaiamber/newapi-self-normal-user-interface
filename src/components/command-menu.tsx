@@ -31,7 +31,6 @@ import {
   CommandList,
   CommandSeparator,
 } from '@/components/ui/command'
-import { useSearch } from '@/context/search-provider'
 import { useTheme } from '@/context/theme-provider'
 import { useSidebarView } from '@/hooks/use-sidebar-view'
 
@@ -45,24 +44,31 @@ import { ScrollArea } from './ui/scroll-area'
  * 原来直接用 useSidebarData() 的未过滤数据，会列出被禁用的入口（审计 4.1 #1）。
  * 保留命令面板的理由：顶栏不再显示搜索按钮，但 ⌘K 是零视觉成本的键盘导航
  * （11 个入口 + 外观切换），过滤后不会再出现 404 入口。
+ * [user-ui] 打开状态改由 SearchProvider 通过 props 传入（原为 useSearch()），
+ * 消除 command-menu ↔ context/search-provider 的循环依赖（lint import/no-cycle）。
  */
-export function CommandMenu() {
+type CommandMenuProps = {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}
+
+export function CommandMenu(props: CommandMenuProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { setTheme } = useTheme()
-  const { open, setOpen } = useSearch()
   const { navGroups } = useSidebarView()
 
+  const onOpenChange = props.onOpenChange
   const runCommand = React.useCallback(
     (command: () => unknown) => {
-      setOpen(false)
+      onOpenChange(false)
       command()
     },
-    [setOpen]
+    [onOpenChange]
   )
 
   return (
-    <CommandDialog modal open={open} onOpenChange={setOpen}>
+    <CommandDialog modal open={props.open} onOpenChange={props.onOpenChange}>
       <Command>
         <CommandInput placeholder={t('Type a command or search...')} />
         <CommandList>

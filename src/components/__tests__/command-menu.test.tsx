@@ -20,6 +20,7 @@ import { CommandMenu } from '@/components/command-menu'
 import { useAuthStore } from '@/stores/auth-store'
 
 const navigate = vi.fn()
+const onOpenChange = vi.fn()
 
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => navigate,
@@ -29,10 +30,6 @@ vi.mock('@tanstack/react-router', () => ({
     const location = { pathname: '/keys', href: '/keys' }
     return options?.select ? options.select(location) : location
   },
-}))
-
-vi.mock('@/context/search-provider', () => ({
-  useSearch: () => ({ open: true, setOpen: () => undefined }),
 }))
 
 // jsdom 没有 Web Animations API；Base UI 的 ScrollArea 会调用 getAnimations()
@@ -53,6 +50,7 @@ afterAll(() => {
 
 afterEach(() => {
   navigate.mockReset()
+  onOpenChange.mockReset()
   useAuthStore.getState().auth.reset()
 })
 
@@ -79,7 +77,9 @@ function renderMenu(sidebarModulesAdmin: object | null) {
       </QueryClientProvider>
     )
   }
-  return render(<CommandMenu />, { wrapper: Wrapper })
+  return render(<CommandMenu open onOpenChange={onOpenChange} />, {
+    wrapper: Wrapper,
+  })
 }
 
 describe('CommandMenu navigation', () => {
@@ -95,7 +95,7 @@ describe('CommandMenu navigation', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('navigates to the chosen entry when an option is selected', async () => {
+  it('closes the palette and navigates to the chosen entry when an option is selected', async () => {
     const user = userEvent.setup()
     renderMenu(null)
 
@@ -104,5 +104,6 @@ describe('CommandMenu navigation', () => {
     )
 
     expect(navigate).toHaveBeenCalledWith({ to: '/dashboard/models' })
+    expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 })

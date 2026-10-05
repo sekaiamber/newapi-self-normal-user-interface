@@ -48,7 +48,8 @@ export function SearchProvider({ children }: SearchProviderProps) {
   return (
     <SearchContext.Provider value={{ open, setOpen }}>
       {children}
-      <CommandMenu />
+      {/* [user-ui] 打开状态通过 props 传给命令面板，避免 command-menu 反向引用本文件形成循环依赖 */}
+      <CommandMenu open={open} onOpenChange={setOpen} />
     </SearchContext.Provider>
   )
 }
