@@ -114,9 +114,8 @@ export function ApiKeyGroupCell(props: ApiKeyGroupCellProps) {
       </TooltipTrigger>
       <TooltipContent>
         <span className='text-xs'>
-          {t(
-            'Automatically selects the best available group with circuit breaker mechanism'
-          )}
+          {/* [user-ui] 不用"熔断"等术语；依据 guide/feature-guide/admin/group.md */}
+          {t('keys.group.autoHint')}
         </span>
       </TooltipContent>
     </Tooltip>

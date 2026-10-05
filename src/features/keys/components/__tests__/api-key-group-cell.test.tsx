@@ -63,7 +63,7 @@ describe('API key group table cell', () => {
     await userEvent.tab()
     expect(
       await screen.findByText(
-        'Automatically selects the best available group with circuit breaker mechanism',
+        'Automatically selects an available group in priority order',
         { selector: '[data-slot="tooltip-content"] *' }
       )
     ).toBeVisible()

@@ -623,7 +623,7 @@ export function ApiKeysMutateDrawer({
                         name='auto_groups'
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>{t('Auto group order')}</FormLabel>
+                            <FormLabel>{t('keys.form.autoOrder')}</FormLabel>
                             <FormDescription>
                               {t(
                                 'Choose and order the groups this API key will try.'
