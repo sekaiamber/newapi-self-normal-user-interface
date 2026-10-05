@@ -51,9 +51,11 @@ import useDialogState from '@/hooks/use-dialog'
 import { useIsSidebarModuleVisible } from '@/hooks/use-sidebar-config'
 import { useUserDisplay } from '@/hooks/use-user-display'
 import { getUserAvatarFallback, getUserAvatarStyle } from '@/lib/avatar'
+import { ROLE } from '@/lib/roles'
 import { useAuthStore } from '@/stores/auth-store'
 
-const avatarFallbackClassName = 'font-semibold text-white'
+// [user-ui] 去掉 text-white：字色由 getUserAvatarStyle 按背景亮度给出（≥ 4.5:1）
+const avatarFallbackClassName = 'font-semibold'
 
 type ThemeValue = ReturnType<typeof useTheme>['theme']
 
@@ -117,6 +119,8 @@ export function ProfileDropdown(props: ProfileDropdownProps) {
   const [open, setOpen] = useDialogState()
   const user = useAuthStore((state) => state.auth.user)
   const { displayName, roleLabel } = useUserDisplay(user)
+  // [user-ui] 普通用户（ROLE.USER）不显示角色行
+  const showRole = (user?.role ?? ROLE.USER) > ROLE.USER
   const isWalletVisible = useIsSidebarModuleVisible('/wallet')
   const isSecurityVisible = useIsSidebarModuleVisible('/security')
   const avatarName = user?.username || displayName
@@ -161,19 +165,13 @@ export function ProfileDropdown(props: ProfileDropdownProps) {
               <p className='text-foreground truncate text-sm font-medium'>
                 {displayName}
               </p>
-              <div className='flex items-center gap-1.5'>
+              {/* [user-ui] 不再显示原始分组（如 default）：分组/倍率属于管理端计费概念（审计 2.5 K5，与 WP-KEYS 一致）；
+                  普通用户只显示名字，管理员等非普通角色才显示角色名 */}
+              {showRole && (
                 <span className='text-muted-foreground text-xs'>
                   {roleLabel}
                 </span>
-                {user?.group && (
-                  <>
-                    <span className='text-muted-foreground text-xs'>·</span>
-                    <span className='text-muted-foreground truncate text-xs'>
-                      {String(user.group)}
-                    </span>
-                  </>
-                )}
-              </div>
+              )}
             </div>
           </div>
 

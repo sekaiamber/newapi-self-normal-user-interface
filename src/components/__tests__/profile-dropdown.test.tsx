@@ -26,7 +26,10 @@ afterEach(() => {
   useAuthStore.getState().auth.reset()
 })
 
-function renderDropdown(node: ReactNode) {
+function renderDropdown(
+  node: ReactNode,
+  user: { role?: number; group?: string } = {}
+) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
@@ -37,6 +40,7 @@ function renderDropdown(node: ReactNode) {
     role: 1,
     permissions: { sidebar_settings: true },
     sidebar_modules: '',
+    ...user,
   })
   return render(
     <QueryClientProvider client={client}>
@@ -94,5 +98,28 @@ describe('ProfileDropdown preferences', () => {
     expect(
       screen.getByRole('menuitemradio', { name: 'shell.theme.dark' })
     ).toHaveAttribute('aria-checked', 'true')
+  })
+})
+
+describe('ProfileDropdown header', () => {
+  it('shows only the name for a regular user, without the raw billing group', async () => {
+    const user = userEvent.setup()
+    renderDropdown(<ProfileDropdown />, { role: 1, group: 'default' })
+
+    await user.click(screen.getByRole('button', { name: 'shell.menu.account' }))
+
+    expect(await screen.findByText('alice')).toBeInTheDocument()
+    expect(screen.queryByText('default')).toBeNull()
+    expect(screen.queryByText('User')).toBeNull()
+  })
+
+  it('shows the role for an administrator', async () => {
+    const user = userEvent.setup()
+    renderDropdown(<ProfileDropdown />, { role: 10, group: 'vip' })
+
+    await user.click(screen.getByRole('button', { name: 'shell.menu.account' }))
+
+    expect(await screen.findByText('Admin')).toBeInTheDocument()
+    expect(screen.queryByText('vip')).toBeNull()
   })
 })
