@@ -16,7 +16,13 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { useCallback, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+
+import { SectionPageLayout } from '@/components/layout'
+
 import { PlaygroundChat } from './components/chat/playground-chat'
+import { PlaygroundCodeDialog } from './components/code/playground-code-dialog'
 import { PlaygroundInput } from './components/input/playground-input'
 import {
   useChatHandler,
@@ -26,6 +32,11 @@ import {
 } from './hooks'
 
 export function Playground() {
+  const { t } = useTranslation()
+  // [user-ui] 输入框草稿由页面持有：起始示例只填入输入框（不直接发送），"查看代码"也会用到草稿
+  const [draft, setDraft] = useState('')
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
   const {
     config,
     parameterEnabled,
@@ -66,6 +77,17 @@ export function Playground() {
     clearMessages()
   }
 
+  // [user-ui] 起始示例：填入输入框并聚焦，光标放到末尾，由用户修改后再发送（审计 2.10 #2）
+  const handleSelectPrompt = useCallback((prompt: string) => {
+    setDraft(prompt)
+    const textarea = textareaRef.current
+    if (!textarea) return
+    textarea.focus()
+    requestAnimationFrame(() => {
+      textarea.setSelectionRange(prompt.length, prompt.length)
+    })
+  }, [])
+
   const { isLoadingModels } = usePlaygroundOptions({
     currentGroup: config.group,
     currentModel: config.model,
@@ -74,47 +96,65 @@ export function Playground() {
     updateConfig,
   })
 
+  // [user-ui] 套用控制台统一的页面外壳：页面标题"在线试用"（原无标题，侧边栏叫"游乐场"），右上角"查看代码"
   return (
-    <div className='relative flex size-full min-h-0 flex-col overflow-hidden'>
-      {/* Full-width scroll container: scrolling works even over side whitespace */}
-      <div className='flex min-h-0 flex-1 flex-col overflow-hidden'>
-        <PlaygroundChat
-          messages={messages}
-          isLoadingMessages={isLoadingMessages}
-          onRegenerateMessage={handleRegenerateMessage}
-          onEditMessage={handleEditMessage}
-          onDeleteMessage={handleDeleteMessage}
-          onSelectPrompt={handleSendMessage}
-          isGenerating={isGenerating}
-          editingKey={editingMessageKey}
-          onCancelEdit={handleEditOpenChange}
-          onSaveEdit={(newContent) => applyEdit(newContent, false)}
-          onSaveEditAndSubmit={(newContent) => applyEdit(newContent, true)}
-        />
-      </div>
-
-      {/* Input area: center content and constrain to the same container width */}
-      <div className='mx-auto w-full max-w-4xl'>
-        <PlaygroundInput
+    <SectionPageLayout fixedContent>
+      <SectionPageLayout.Title>{t('playground.title')}</SectionPageLayout.Title>
+      <SectionPageLayout.Actions>
+        <PlaygroundCodeDialog
           config={config}
-          disabled={isGenerating}
-          groups={groups}
-          groupValue={config.group}
-          isGenerating={isGenerating}
-          isModelLoading={isLoadingModels}
-          modelValue={config.model}
-          models={models}
-          onGroupChange={(value) => updateConfig('group', value)}
-          onConfigChange={updateConfig}
-          onClearMessages={handleClearMessages}
-          onModelChange={(value) => updateConfig('model', value)}
-          onParameterEnabledChange={updateParameterEnabled}
-          onStop={stopGeneration}
-          onSubmit={handleSendMessage}
+          disabled={!config.model}
+          draft={draft}
+          messages={messages}
           parameterEnabled={parameterEnabled}
-          hasMessages={messages.length > 0}
         />
-      </div>
-    </div>
+      </SectionPageLayout.Actions>
+      <SectionPageLayout.Content>
+        <div className='relative flex size-full min-h-0 flex-col overflow-hidden'>
+          {/* Full-width scroll container: scrolling works even over side whitespace */}
+          <div className='flex min-h-0 flex-1 flex-col overflow-hidden'>
+            <PlaygroundChat
+              messages={messages}
+              isLoadingMessages={isLoadingMessages}
+              onRegenerateMessage={handleRegenerateMessage}
+              onEditMessage={handleEditMessage}
+              onDeleteMessage={handleDeleteMessage}
+              onSelectPrompt={handleSelectPrompt}
+              isGenerating={isGenerating}
+              editingKey={editingMessageKey}
+              onCancelEdit={handleEditOpenChange}
+              onSaveEdit={(newContent) => applyEdit(newContent, false)}
+              onSaveEditAndSubmit={(newContent) => applyEdit(newContent, true)}
+            />
+          </div>
+
+          {/* Input area: center content and constrain to the same container width */}
+          <div className='mx-auto w-full max-w-4xl'>
+            <PlaygroundInput
+              config={config}
+              disabled={isGenerating}
+              groups={groups}
+              groupValue={config.group}
+              isGenerating={isGenerating}
+              isModelLoading={isLoadingModels}
+              modelValue={config.model}
+              models={models}
+              onGroupChange={(value) => updateConfig('group', value)}
+              onConfigChange={updateConfig}
+              onClearMessages={handleClearMessages}
+              onModelChange={(value) => updateConfig('model', value)}
+              onParameterEnabledChange={updateParameterEnabled}
+              onStop={stopGeneration}
+              onSubmit={handleSendMessage}
+              onTextChange={setDraft}
+              parameterEnabled={parameterEnabled}
+              hasMessages={messages.length > 0}
+              text={draft}
+              textareaRef={textareaRef}
+            />
+          </div>
+        </div>
+      </SectionPageLayout.Content>
+    </SectionPageLayout>
   )
 }

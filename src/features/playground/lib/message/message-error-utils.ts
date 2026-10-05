@@ -19,17 +19,23 @@ For commercial licensing, please contact support@quantumnous.com
 import { MESSAGE_STATUS } from '../../constants'
 import type { Message } from '../../types'
 import { getMessageContent } from './message-utils'
+import {
+  getPlaygroundErrorInfo,
+  type PlaygroundErrorInfo,
+} from './playground-error-info'
 
-export const MODEL_PRICING_SETTINGS_PATH =
-  '/system-settings/billing/model-pricing'
+// [user-ui] 删除 MODEL_PRICING_SETTINGS_PATH（/system-settings/billing/model-pricing）：
+// 用户 UI 没有系统设置页，原"Go to Settings"按钮会打开 404（审计 4.1 #10），改为给管理员的文字提示。
 
-const MODEL_PRICE_ERROR_CODE = 'model_price_error'
 export const FALLBACK_ERROR_CONTENT = 'An unknown error occurred'
 
 type MessageErrorState = {
   content: string
+  // [user-ui] 错误分类与"下一步"提示（playground-error-info.ts）
+  info: PlaygroundErrorInfo
   kind: 'generic' | 'model-price'
-  showSettingsLink: boolean
+  // [user-ui] 原 showSettingsLink：只给管理员显示文字提示，不再给链接
+  showAdminHint: boolean
 }
 
 export function isAdminRole(role?: number | null): boolean {
@@ -49,11 +55,13 @@ export function getMessageErrorState(
   }
 
   const content = getMessageContent(message) || FALLBACK_ERROR_CONTENT
-  const isModelPriceError = message.errorCode === MODEL_PRICE_ERROR_CODE
+  const info = getPlaygroundErrorInfo(content, message.errorCode)
+  const isModelPriceError = info.kind === 'model-price'
 
   return {
     content,
+    info,
     kind: isModelPriceError ? 'model-price' : 'generic',
-    showSettingsLink: isModelPriceError && isAdmin,
+    showAdminHint: isModelPriceError && isAdmin,
   }
 }

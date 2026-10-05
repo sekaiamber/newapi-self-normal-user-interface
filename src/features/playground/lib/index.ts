@@ -16,6 +16,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+// [user-ui] "查看代码"示例与起始示例
+export * from './code/playground-code'
+export * from './input/starter-prompts'
 export * from './input/input-control-utils'
 export * from './input/input-tool-utils'
 export * from './message/conversation-message-utils'
@@ -30,6 +33,8 @@ export * from './message/message-styles'
 export * from './message/message-timing-utils'
 export * from './message/message-update-utils'
 export * from './message/message-utils'
+// [user-ui] 错误分类（在线试用的错误提示改成人话）
+export * from './message/playground-error-info'
 export * from './options/playground-option-utils'
 export * from './parameters/playground-parameters'
 export * from './state/playground-state-utils'
