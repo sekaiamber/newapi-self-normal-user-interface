@@ -16,292 +16,250 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+/*
+ * [user-ui] 页脚按 SwarmRouter 品牌重写（审计 3.3、3.6、5.2 方向 B）：
+ * - 去掉上游署名行 ProjectAttribution（"© New API … 由项目贡献者设计与开发"）与标语"强大的 API 管理平台"，
+ *   上游版权与许可改由共享的 <SourceNotice /> 以法律声明的形式给出（AGPLv3 第 5(d)、13 条）。
+ * - 去掉演示站模式下指向 docs.newapi.pro / One API 等外部项目的链接列，改为本站导航、/docs 与条款链接。
+ * - 新增 PublicFooter（精简页脚），由 PublicLayout 挂到文档、协议等其他公共页。
+ * - 管理员在后台设置的页脚 HTML（footer_html）仍然显示（官方行为保留）。
+ */
 import { Link } from '@tanstack/react-router'
-import { Fragment, useMemo } from 'react'
+import { Fragment } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { isDefaultLogo } from '@/assets/brand'
+import { BrandLogo } from '@/assets/brand-logo'
+import { SourceNotice } from '@/components/legal/source-notice'
 import { useStatus } from '@/hooks/use-status'
 import { useSystemConfig } from '@/hooks/use-system-config'
+import { useTopNavLinks } from '@/hooks/use-top-nav-links'
+import { DEFAULT_SYSTEM_NAME } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 
-interface FooterLink {
-  text: string
-  href: string
+import { HeaderLogo } from './header-logo'
+import { PUBLIC_NAV_LABEL_KEYS } from './public-nav-labels'
+
+interface FooterLinkItem {
+  key: string
+  label: string
+  /** 站内路径 */
+  to: string
 }
 
-interface FooterColumnProps {
-  title: string
-  links: FooterLink[]
-}
+const LINK_CLASS_NAME =
+  'text-muted-foreground hover:text-foreground focus-visible:text-foreground text-sm underline-offset-4 transition-colors hover:underline focus-visible:underline'
+const INLINE_LINK_CLASS_NAME =
+  'hover:text-foreground focus-visible:text-foreground underline-offset-4 hover:underline focus-visible:underline'
 
-interface FooterProps {
-  logo?: string
-  name?: string
-  columns?: FooterColumnProps[]
-  copyright?: string
-  className?: string
-}
-
-const NEW_API_FOOTER_ATTRIBUTION_KEY = [
-  'footer',
-  'new' + 'api',
-  'projectAttributionSuffix',
-].join('.')
-
-function FooterLinkItem(props: { link: FooterLink }) {
-  const { t } = useTranslation()
-  const isExternal = props.link.href.startsWith('http')
-  const label = t(props.link.text)
-
-  if (isExternal) {
-    return (
-      <a
-        href={props.link.href}
-        target='_blank'
-        rel='noopener noreferrer'
-        className='text-muted-foreground hover:text-foreground text-sm transition-colors duration-200'
-      >
-        {label}
-      </a>
-    )
-  }
-
-  return (
-    <Link
-      to={props.link.href}
-      className='text-muted-foreground hover:text-foreground text-sm transition-colors duration-200'
-    >
-      {label}
-    </Link>
-  )
-}
-
-// Renders User Agreement / Privacy Policy links inline with the parent's
-// copyright row when either is configured in System Settings → Site. Emits
-// fragmented siblings so the parent flex container's gap controls spacing.
-function LegalLinks(props: { leadingSeparator?: boolean }) {
+// 用户协议 / 隐私政策只在后台开启时出现（官方行为）
+function useLegalLinks(): FooterLinkItem[] {
   const { t } = useTranslation()
   const { status } = useStatus()
-  const items: { key: string; label: string; href: string }[] = []
+  const items: FooterLinkItem[] = []
   if (status?.user_agreement_enabled) {
     items.push({
       key: 'user-agreement',
       label: t('User Agreement'),
-      href: '/user-agreement',
+      to: '/user-agreement',
     })
   }
   if (status?.privacy_policy_enabled) {
     items.push({
       key: 'privacy-policy',
       label: t('Privacy Policy'),
-      href: '/privacy-policy',
+      to: '/privacy-policy',
     })
   }
-  if (items.length === 0) {
-    return null
-  }
+  return items
+}
+
+function FooterLink(props: { item: FooterLinkItem; className: string }) {
   return (
-    <>
-      {items.map((item, index) => (
-        <Fragment key={item.key}>
-          {(props.leadingSeparator || index > 0) && (
-            <span aria-hidden='true' className='text-muted-foreground/30'>
-              ·
-            </span>
-          )}
-          <Link
-            to={item.href}
-            className='hover:text-foreground transition-colors duration-200'
-          >
-            {item.label}
-          </Link>
-        </Fragment>
-      ))}
-    </>
+    <Link to={props.item.to} className={props.className}>
+      {props.item.label}
+    </Link>
   )
 }
 
-// inline=true returns just the inner span for composition in a parent flex
-// row. inline=false wraps in a centered/right-aligned div (default).
-function ProjectAttribution(props: { currentYear: number; inline?: boolean }) {
+function Copyright(props: { name: string }) {
   const { t } = useTranslation()
-  const content = (
-    <span className='text-muted-foreground/45'>
-      &copy; {props.currentYear}{' '}
-      <a
-        href='https://github.com/QuantumNous/new-api'
-        target='_blank'
-        rel='noopener noreferrer'
-        className='text-foreground/70 hover:text-foreground font-medium transition-colors'
-      >
-        {t('New API')}
-      </a>
-      . {t(NEW_API_FOOTER_ATTRIBUTION_KEY)}
+  return (
+    <span>
+      &copy; {new Date().getFullYear()} {props.name}.{' '}
+      {t('footer.defaultCopyright')}
     </span>
   )
-  if (props.inline) {
-    return content
+}
+
+/** 品牌标识：默认 Logo + 默认站名时用横排标识，否则显示后台配置的 Logo 与站名。 */
+function FooterBrand() {
+  const { systemName, logo, loading, logoLoaded } = useSystemConfig()
+  if (isDefaultLogo(logo) && systemName === DEFAULT_SYSTEM_NAME) {
+    return <BrandLogo className='h-8 w-auto' alt={systemName} />
   }
   return (
-    <div className='text-muted-foreground/45 text-center text-xs sm:text-right'>
-      {content}
+    <span className='flex items-center gap-2.5'>
+      <HeaderLogo
+        src={logo}
+        alt={systemName}
+        loading={loading}
+        logoLoaded={logoLoaded}
+        className='size-8'
+      />
+      <span className='text-base font-semibold tracking-tight'>
+        {systemName}
+      </span>
+    </span>
+  )
+}
+
+function FooterColumn(props: { title: string; items: FooterLinkItem[] }) {
+  if (props.items.length === 0) return null
+  return (
+    <div>
+      <p className='font-mono text-xs font-semibold tracking-[0.14em] uppercase'>
+        {props.title}
+      </p>
+      <ul className='mt-4 space-y-2.5'>
+        {props.items.map((item) => (
+          <li key={item.key}>
+            <FooterLink item={item} className={LINK_CLASS_NAME} />
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }
 
-export function Footer(props: FooterProps) {
+function useSiteLinks(): FooterLinkItem[] {
   const { t } = useTranslation()
-  const {
-    systemName,
-    logo: systemLogo,
-    footerHtml,
-    demoSiteEnabled,
-  } = useSystemConfig()
+  // 与顶栏同源：只列出已开启的入口（模型广场、排行榜、关于已由功能开关关闭）
+  return useTopNavLinks()
+    .filter((link) => !link.external && !link.disabled && !link.requiresAuth)
+    .map((link) => {
+      const labelKey = PUBLIC_NAV_LABEL_KEYS[link.href]
+      return {
+        key: link.href,
+        label: labelKey ? t(labelKey) : link.title,
+        to: link.href,
+      }
+    })
+}
 
-  const displayLogo = systemLogo || props.logo || '/logo.png'
-  const displayName = systemName || props.name || 'New API'
-  const isDemoSiteMode = Boolean(demoSiteEnabled)
-  const currentYear = new Date().getFullYear()
+function useDocLinks(): FooterLinkItem[] {
+  const { t } = useTranslation()
+  const pages: Array<{ slug: string; labelKey: string }> = [
+    { slug: 'quick-start', labelKey: 'home.footer.quickStart' },
+    { slug: 'api-basics', labelKey: 'home.footer.apiBasics' },
+    { slug: 'clients', labelKey: 'home.footer.clients' },
+    { slug: 'faq', labelKey: 'home.footer.faq' },
+  ]
+  return pages.map((page) => ({
+    key: page.slug,
+    label: t(page.labelKey),
+    to: `/docs/${page.slug}`,
+  }))
+}
 
-  const fallbackColumns = useMemo<FooterColumnProps[]>(
-    () => [
-      {
-        title: t('footer.columns.about.title'),
-        links: [
-          {
-            text: t('footer.columns.about.links.aboutProject'),
-            href: 'https://docs.newapi.pro/wiki/project-introduction/',
-          },
-          {
-            text: t('footer.columns.about.links.contact'),
-            href: 'https://docs.newapi.pro/support/community-interaction/',
-          },
-          {
-            text: t('footer.columns.about.links.features'),
-            href: 'https://docs.newapi.pro/wiki/features-introduction/',
-          },
-        ],
-      },
-      {
-        title: t('footer.columns.docs.title'),
-        links: [
-          {
-            text: t('footer.columns.docs.links.quickStart'),
-            href: 'https://docs.newapi.pro/getting-started/',
-          },
-          {
-            text: t('footer.columns.docs.links.installation'),
-            href: 'https://docs.newapi.pro/installation/',
-          },
-          {
-            text: t('footer.columns.docs.links.apiDocs'),
-            href: 'https://docs.newapi.pro/api/',
-          },
-        ],
-      },
-      {
-        title: t('footer.columns.related.title'),
-        links: [
-          {
-            text: t('footer.columns.related.links.oneApi'),
-            href: 'https://github.com/songquanpeng/one-api',
-          },
-          {
-            text: t('footer.columns.related.links.midjourney'),
-            href: 'https://github.com/novicezk/midjourney-proxy',
-          },
-          {
-            text: t('footer.columns.related.links.newApiKeyTool'),
-            href: 'https://github.com/Calcium-Ion/new-api-key-tool',
-          },
-        ],
-      },
-    ],
-    [t]
-  )
-
-  const displayColumns = props.columns ?? fallbackColumns
-
-  if (footerHtml) {
-    return (
-      <footer
-        className={cn(
-          'border-border/40 relative z-10 border-t',
-          props.className
-        )}
-      >
-        <div className='mx-auto w-full max-w-6xl px-6 py-5'>
-          <div className='bg-muted/20 border-border/50 flex flex-col items-center justify-between gap-4 rounded-2xl border px-4 py-4 backdrop-blur-sm sm:flex-row sm:px-5'>
-            <div
-              className='custom-footer text-muted-foreground min-w-0 text-center text-sm sm:text-left'
-              dangerouslySetInnerHTML={{ __html: footerHtml }}
-            />
-            <div className='border-border/60 text-muted-foreground/45 flex w-full flex-wrap items-center justify-center gap-x-3 gap-y-1 border-t pt-4 text-xs sm:w-auto sm:justify-end sm:border-t-0 sm:border-l sm:pt-0 sm:pl-5'>
-              <LegalLinks />
-              <ProjectAttribution currentYear={currentYear} inline />
-            </div>
-          </div>
-        </div>
-      </footer>
-    )
-  }
+/**
+ * 完整页脚（首页）。外层套 `dark` 类：无论站点明暗都是品牌近黑底，颜色仍全部取自主题 token。
+ */
+export function Footer(props: { className?: string }) {
+  const { t } = useTranslation()
+  const { systemName, footerHtml } = useSystemConfig()
+  const siteLinks = useSiteLinks()
+  const docLinks = useDocLinks()
+  const legalLinks = useLegalLinks()
 
   return (
     <footer
-      className={cn('border-border/40 relative z-10 border-t', props.className)}
+      className={cn('border-edge relative z-10 border-t-2', props.className)}
     >
-      <div className='mx-auto max-w-6xl px-6 py-12 md:py-16'>
-        <div className='flex flex-col justify-between gap-10 md:flex-row md:gap-16'>
-          {/* Brand column */}
-          <div className='shrink-0'>
-            <Link to='/' className='group flex items-center gap-2.5'>
-              <img
-                src={displayLogo}
-                alt={displayName}
-                className='size-7 rounded-lg object-contain'
-              />
-              <span className='text-sm font-semibold tracking-tight'>
-                {displayName}
-              </span>
-            </Link>
-            <p className='text-muted-foreground/60 mt-3 max-w-[200px] text-xs leading-relaxed'>
-              {t('Powerful API Management Platform')}
-            </p>
-          </div>
-
-          {/* Links columns */}
-          {isDemoSiteMode && (
-            <div className='grid grid-cols-3 gap-8 md:gap-16'>
-              {displayColumns.map((column, index) => (
-                <div key={index}>
-                  <p className='text-muted-foreground/50 mb-3 text-xs font-medium tracking-wider uppercase'>
-                    {t(column.title)}
-                  </p>
-                  <ul className='space-y-2.5'>
-                    {column.links.map((link, linkIndex) => (
-                      <li key={linkIndex}>
-                        <FooterLinkItem link={link} />
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
+      <div className='dark bg-card text-card-foreground'>
+        <div className='mx-auto max-w-7xl px-4 py-12 sm:px-6 md:py-16 lg:px-8'>
+          {footerHtml ? (
+            <div
+              className='custom-footer text-muted-foreground text-sm'
+              // 管理员在后台配置的页脚 HTML（官方行为）
+              dangerouslySetInnerHTML={{ __html: footerHtml }}
+            />
+          ) : (
+            <div className='grid gap-10 md:grid-cols-12'>
+              <div className='md:col-span-5'>
+                <Link
+                  to='/'
+                  className='inline-flex'
+                  aria-label={t('home.nav.home')}
+                >
+                  <FooterBrand />
+                </Link>
+                <p className='text-muted-foreground mt-4 max-w-sm text-sm leading-relaxed'>
+                  {t('home.footer.tagline')}
+                </p>
+              </div>
+              <nav
+                aria-label={t('home.footer.navigation')}
+                className='grid grid-cols-2 gap-8 sm:grid-cols-3 md:col-span-7'
+              >
+                <FooterColumn title={t('home.footer.site')} items={siteLinks} />
+                <FooterColumn title={t('home.footer.docs')} items={docLinks} />
+                <FooterColumn
+                  title={t('home.footer.legal')}
+                  items={legalLinks}
+                />
+              </nav>
             </div>
           )}
-        </div>
 
-        {/* Copyright + optional legal links inline on the left, project
-            attribution on the right; wraps on narrow screens. */}
-        <div className='border-border/30 mt-12 flex flex-col items-center justify-between gap-x-3 gap-y-2 border-t pt-6 sm:flex-row'>
-          <div className='text-muted-foreground/40 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs sm:justify-start'>
-            <span>
-              &copy; {currentYear} {displayName}.{' '}
-              {props.copyright ?? t('footer.defaultCopyright')}
-            </span>
-            <LegalLinks leadingSeparator />
+          <div className='border-edge-soft text-muted-foreground mt-10 flex flex-col gap-3 border-t-2 pt-6 text-xs lg:flex-row lg:items-start lg:justify-between lg:gap-10'>
+            <p className='flex flex-wrap items-center gap-x-2 gap-y-1'>
+              <Copyright name={systemName} />
+              {footerHtml &&
+                legalLinks.map((item) => (
+                  <Fragment key={item.key}>
+                    <span aria-hidden='true'>·</span>
+                    <FooterLink
+                      item={item}
+                      className={INLINE_LINK_CLASS_NAME}
+                    />
+                  </Fragment>
+                ))}
+            </p>
+            <SourceNotice
+              variant='full'
+              className='lg:max-w-xl lg:text-right'
+            />
           </div>
-          <ProjectAttribution currentYear={currentYear} />
         </div>
+      </div>
+    </footer>
+  )
+}
+
+/** 精简页脚（文档、协议、自定义首页等公共页）：版权、条款链接与源码声明。 */
+export function PublicFooter(props: { className?: string }) {
+  const { systemName } = useSystemConfig()
+  const legalLinks = useLegalLinks()
+
+  return (
+    <footer
+      className={cn(
+        'border-edge-soft text-muted-foreground relative z-10 border-t-2 text-xs',
+        props.className
+      )}
+    >
+      <div className='mx-auto flex max-w-7xl flex-col gap-2 px-4 py-6 sm:px-6 lg:flex-row lg:items-start lg:justify-between lg:gap-10 lg:px-8'>
+        <p className='flex flex-wrap items-center gap-x-2 gap-y-1'>
+          <Copyright name={systemName} />
+          {legalLinks.map((item) => (
+            <Fragment key={item.key}>
+              <span aria-hidden='true'>·</span>
+              <FooterLink item={item} className={INLINE_LINK_CLASS_NAME} />
+            </Fragment>
+          ))}
+        </p>
+        <SourceNotice variant='full' className='lg:max-w-xl lg:text-right' />
       </div>
     </footer>
   )
