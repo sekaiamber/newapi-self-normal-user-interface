@@ -24,6 +24,7 @@ import { useSidebarView } from '@/hooks/use-sidebar-view'
 import { MOTION_TRANSITION, MOTION_VARIANTS } from '@/lib/motion'
 
 import { NavGroup } from './nav-group'
+import { SidebarSourceFooter } from './sidebar-source-footer'
 import { SidebarViewHeader } from './sidebar-view-header'
 
 /**
@@ -70,6 +71,9 @@ export function AppSidebar() {
           </motion.div>
         </AnimatePresence>
       </SidebarContent>
+
+      {/* [user-ui] 侧栏底部：源码与许可声明（AGPLv3，审计 3.6） */}
+      <SidebarSourceFooter />
 
       <SidebarRail />
     </Sidebar>

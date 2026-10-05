@@ -25,6 +25,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
@@ -35,8 +40,10 @@ import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 
-export function LanguageSwitcher() {
-  const { i18n, t } = useTranslation()
+// [user-ui] 切换语言的逻辑抽成内部 hook，供顶栏按钮（公共页）与头像菜单里的子菜单（控制台）共用；
+// 行为不变：切换 i18n 语言，已登录时尽力把偏好写回 /api/user/self。
+function useInterfaceLanguage() {
+  const { i18n } = useTranslation()
   const user = useAuthStore((s) => s.auth.user)
   const currentLanguage = normalizeInterfaceLanguage(i18n.language)
   const handleChangeLanguage = useCallback(
@@ -52,6 +59,12 @@ export function LanguageSwitcher() {
     },
     [i18n, user]
   )
+  return { currentLanguage, handleChangeLanguage }
+}
+
+export function LanguageSwitcher() {
+  const { t } = useTranslation()
+  const { currentLanguage, handleChangeLanguage } = useInterfaceLanguage()
 
   return (
     <DropdownMenu modal={false}>
@@ -79,5 +92,45 @@ export function LanguageSwitcher() {
         ))}
       </DropdownMenuContent>
     </DropdownMenu>
+  )
+}
+
+/**
+ * [user-ui] 语言子菜单，嵌在头像菜单（ProfileDropdown）里使用（审计 1.3：控制台顶栏只留 文档 · 通知 · 头像，
+ * 语言收进头像菜单）。触发项右侧显示当前语言。
+ */
+export function LanguageMenuSub() {
+  const { t } = useTranslation()
+  const { currentLanguage, handleChangeLanguage } = useInterfaceLanguage()
+  const currentLabel = INTERFACE_LANGUAGE_OPTIONS.find(
+    (lang) => lang.code === currentLanguage
+  )?.label
+
+  return (
+    <DropdownMenuSub>
+      <DropdownMenuSubTrigger>
+        <Languages className='size-4' aria-hidden='true' />
+        {t('shell.menu.language')}
+        {currentLabel ? (
+          <span className='text-muted-foreground ms-auto text-xs'>
+            {currentLabel}
+          </span>
+        ) : null}
+      </DropdownMenuSubTrigger>
+      <DropdownMenuSubContent className='min-w-36'>
+        <DropdownMenuRadioGroup
+          value={currentLanguage}
+          onValueChange={(value) => {
+            void handleChangeLanguage(String(value))
+          }}
+        >
+          {INTERFACE_LANGUAGE_OPTIONS.map((lang) => (
+            <DropdownMenuRadioItem key={lang.code} value={lang.code}>
+              {lang.label}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuSubContent>
+    </DropdownMenuSub>
   )
 }

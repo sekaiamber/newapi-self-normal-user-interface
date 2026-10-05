@@ -18,11 +18,6 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { createFileRoute } from '@tanstack/react-router'
 
-import { ConfigDrawer } from '@/components/config-drawer'
-import { Header } from '@/components/layout'
-import { ProfileDropdown } from '@/components/profile-dropdown'
-import { Search } from '@/components/search'
-import { ThemeSwitch } from '@/components/theme-switch'
 import { ForbiddenError } from '@/features/errors/forbidden'
 import { GeneralError } from '@/features/errors/general-error'
 import { MaintenanceError } from '@/features/errors/maintenance-error'
@@ -45,19 +40,11 @@ function RouteComponent() {
   }
   const ErrorComponent = errorMap[error] || NotFoundError
 
+  // [user-ui] 本路由在控制台布局（AuthenticatedLayout）内渲染，布局已有顶栏；
+  // 原来这里再画一个 Header（搜索、主题、头像），页面出现两个顶栏。只渲染错误内容。
   return (
-    <>
-      <Header>
-        <Search />
-        <div className='ms-auto flex items-center md:space-x-4'>
-          <ThemeSwitch />
-          <ConfigDrawer />
-          <ProfileDropdown />
-        </div>
-      </Header>
-      <div className='flex-1 [&>div]:h-full'>
-        <ErrorComponent />
-      </div>
-    </>
+    <div className='flex-1 [&>div]:h-full'>
+      <ErrorComponent />
+    </div>
   )
 }

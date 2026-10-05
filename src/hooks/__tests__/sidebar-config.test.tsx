@@ -22,6 +22,7 @@ import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { checkIsActive } from '@/components/layout/lib/url-utils'
+import type { NavGroup, NavItem } from '@/components/layout/types'
 import { useAuthStore } from '@/stores/auth-store'
 
 import { useSidebarConfig } from '../use-sidebar-config'
@@ -39,6 +40,10 @@ vi.mock('@/config/user-ui-features', () => ({
   },
   isUserUiFeatureEnabled: () => true,
 }))
+
+// [user-ui] 侧边栏按已确认的信息架构重排（概览 / 开始使用 / 用量 / 账户），名称改为 nav.* key，
+// 因此断言改用 URL 与分组 id，不再依赖官方的分组（chat / general / personal）与英文标题；
+// 后端 SidebarModulesAdmin × 用户 sidebar_modules 的过滤规则与官方用例保持一致。
 
 beforeEach(() => {
   vi.stubGlobal('localStorage', {
@@ -82,70 +87,144 @@ function sidebarFor(admin?: object, user?: object, canConfigure = true) {
   return result
 }
 
+function urlsOf(items: NavItem[] | undefined): unknown[] {
+  return (items ?? []).map((item) => item.url)
+}
+
+function groupUrls(groups: NavGroup[], id: string): unknown[] {
+  return urlsOf(groups.find((group) => group.id === id)?.items)
+}
+
+function allUrls(groups: NavGroup[]): unknown[] {
+  return urlsOf(groups.flatMap((group) => group.items))
+}
+
+describe('console information architecture', () => {
+  it('default configuration groups entries as Overview / Get Started / Usage / Account without changing routes', () => {
+    const { result } = sidebarFor()
+
+    expect(result.current.map((group) => group.id)).toEqual([
+      'home',
+      'get-started',
+      'usage',
+      'account',
+    ])
+    expect(groupUrls(result.current, 'home')).toEqual(['/dashboard/overview'])
+    expect(groupUrls(result.current, 'get-started')).toEqual([
+      '/keys',
+      '/playground',
+      '/docs',
+    ])
+    expect(groupUrls(result.current, 'usage')).toEqual([
+      '/dashboard/models',
+      '/usage-logs/common',
+      '/usage-logs/task',
+    ])
+    expect(groupUrls(result.current, 'account')).toEqual([
+      '/wallet',
+      '/profile',
+      '/security',
+      '/usage-logs/audit',
+    ])
+  })
+
+  it('overview group has no heading while the other groups have one', () => {
+    const { result } = sidebarFor()
+
+    expect(result.current.find((group) => group.id === 'home')?.title).toBe('')
+    for (const id of ['get-started', 'usage', 'account']) {
+      expect(result.current.find((group) => group.id === id)?.title).not.toBe(
+        ''
+      )
+    }
+  })
+
+  it('backend disabling every module still keeps the Integration Docs entry', () => {
+    const { result } = sidebarFor({
+      chat: { enabled: false },
+      console: { enabled: false },
+      personal: { enabled: false },
+    })
+
+    expect(result.current.map((group) => group.id)).toEqual(['get-started'])
+    expect(allUrls(result.current)).toEqual(['/docs'])
+  })
+
+  it('usage stats stays selected on the flow tab and task logs on the drawing tab', () => {
+    const { result } = sidebarFor()
+    const items = result.current.flatMap((group) => group.items)
+
+    expect(
+      items
+        .filter((item) => checkIsActive('/dashboard/flow', item))
+        .map((item) => item.url)
+    ).toEqual(['/dashboard/models'])
+    expect(
+      items
+        .filter((item) => checkIsActive('/usage-logs/drawing', item))
+        .map((item) => item.url)
+    ).toEqual(['/usage-logs/task'])
+  })
+
+  it.each([
+    [{ console: { enabled: true, midjourney: false } }, true],
+    [{ console: { enabled: true, task: false } }, true],
+    [{ console: { enabled: true, midjourney: false, task: false } }, false],
+  ])(
+    'task logs entry visibility follows drawing or task modules (%j)',
+    (admin, visible) => {
+      const { result } = sidebarFor(admin)
+
+      expect(allUrls(result.current).includes('/usage-logs/task')).toBe(visible)
+    }
+  )
+})
+
 describe('security sidebar visibility', () => {
-  it('old configurations show Security & Access immediately after Profile and keep API Keys', () => {
+  it('old configurations show Security right after Profile and keep API Keys', () => {
     const { result } = sidebarFor(
       { personal: { enabled: true, personal: true, topup: true } },
       { personal: { enabled: true, personal: true } }
     )
-    expect(
-      result.current
-        .find((group) => group.id === 'personal')
-        ?.items.map((item) => item.title)
-    ).toEqual(['Wallet', 'Profile', 'Security & Access'])
-    expect(
-      result.current
-        .flatMap((group) => group.items)
-        .some((item) => item.title === 'API Keys')
-    ).toBe(true)
+    expect(groupUrls(result.current, 'account')).toEqual([
+      '/wallet',
+      '/profile',
+      '/security',
+      '/usage-logs/audit',
+    ])
+    expect(allUrls(result.current)).toContain('/keys')
   })
   it.each([
     [{ personal: { enabled: true, security: false } }, undefined],
     [{ personal: { enabled: false } }, { personal: { security: true } }],
     [undefined, { personal: { enabled: true, security: false } }],
     [undefined, { personal: { enabled: false } }],
-  ])(
-    'admin or user disablement hides Security & Access (%j, %j)',
-    (admin, user) => {
-      const { result } = sidebarFor(admin, user)
-      expect(
-        result.current
-          .flatMap((group) => group.items)
-          .some((item) => item.title === 'Security & Access')
-      ).toBe(false)
-    }
-  )
+  ])('admin or user disablement hides Security (%j, %j)', (admin, user) => {
+    const { result } = sidebarFor(admin, user)
+    expect(allUrls(result.current)).not.toContain('/security')
+  })
   it('users without sidebar configuration permission retain the admin view', () => {
     const { result } = sidebarFor(
       undefined,
       { personal: { security: false } },
       false
     )
-    expect(
-      result.current
-        .flatMap((group) => group.items)
-        .some((item) => item.title === 'Security & Access')
-    ).toBe(true)
+    expect(allUrls(result.current)).toContain('/security')
   })
 })
 
-describe('audit log sidebar entry', () => {
-  it('legacy configurations show a separate Audit Logs link immediately after Usage Logs', () => {
+describe('account activity sidebar entry', () => {
+  it('legacy configurations show Account Activity at the end of the Account group as the only active item on its route', () => {
     const { result } = sidebarFor(
       { console: { enabled: true, log: true } },
       { console: { enabled: true, log: true } }
     )
-    const items =
-      result.current.find((group) => group.id === 'general')?.items ?? []
-    const usageIndex = items.findIndex((item) => item.title === 'Usage Logs')
-    expect(items[usageIndex + 1]).toMatchObject({
-      title: 'Audit Logs',
-      url: '/usage-logs/audit',
-    })
-    const selected = items.filter((item) =>
-      checkIsActive('/usage-logs/audit', item)
-    )
-    expect(selected.map((item) => item.title)).toEqual(['Audit Logs'])
+    const accountUrls = groupUrls(result.current, 'account')
+    expect(accountUrls.at(-1)).toBe('/usage-logs/audit')
+    const selected = result.current
+      .flatMap((group) => group.items)
+      .filter((item) => checkIsActive('/usage-logs/audit', item))
+    expect(selected.map((item) => item.url)).toEqual(['/usage-logs/audit'])
   })
 
   it.each([
@@ -154,23 +233,17 @@ describe('audit log sidebar entry', () => {
     [undefined, { console: { enabled: true, audit: false } }],
     [undefined, { console: { enabled: false } }],
   ])(
-    'admin and personal visibility rules can hide Audit Logs (%j, %j)',
+    'admin and personal visibility rules can hide Account Activity (%j, %j)',
     (admin, user) => {
       const { result } = sidebarFor(admin, user)
-      expect(
-        result.current
-          .flatMap((group) => group.items)
-          .some((item) => item.title === 'Audit Logs')
-      ).toBe(false)
+      expect(allUrls(result.current)).not.toContain('/usage-logs/audit')
     }
   )
 
-  it('hiding Usage Logs does not hide the independently configured Audit Logs entry', () => {
+  it('hiding Request Logs does not hide the independently configured Account Activity entry', () => {
     const { result } = sidebarFor({ console: { enabled: true, log: false } })
-    const titles = result.current
-      .flatMap((group) => group.items)
-      .map((item) => item.title)
-    expect(titles).not.toContain('Usage Logs')
-    expect(titles).toContain('Audit Logs')
+    const urls = allUrls(result.current)
+    expect(urls).not.toContain('/usage-logs/common')
+    expect(urls).toContain('/usage-logs/audit')
   })
 })

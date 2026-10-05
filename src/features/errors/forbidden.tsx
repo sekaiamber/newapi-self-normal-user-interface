@@ -16,31 +16,38 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useNavigate, useRouter } from '@tanstack/react-router'
+import { useRouter } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 
+import { ErrorHomeAction } from './components/error-home-action'
+
 export function ForbiddenError() {
   const { t } = useTranslation()
-  const navigate = useNavigate()
   const { history } = useRouter()
   return (
     <div className='h-svh'>
-      <div className='m-auto flex h-full w-full flex-col items-center justify-center gap-2'>
-        <h1 className='text-[7rem] leading-tight font-bold'>403</h1>
+      <div className='m-auto flex h-full w-full flex-col items-center justify-center gap-2 px-4'>
+        {/* [user-ui] 状态码用等宽数字字体 */}
+        <h1 className='font-mono text-[7rem] leading-tight font-bold tabular-nums'>
+          403
+        </h1>
         <span className='font-medium'>{t('Access Forbidden')}</span>
         <p className='text-muted-foreground text-center'>
           {t("You don't have necessary permission")} <br />
           {t('to view this resource.')}
         </p>
-        <div className='mt-6 flex gap-4'>
+        {/* [user-ui] 权限由站点管理员分配，给出下一步 */}
+        <p className='text-muted-foreground text-center text-sm'>
+          {t('shell.error.contactAdminForAccess')}
+        </p>
+        <div className='mt-6 flex flex-wrap justify-center gap-4'>
           <Button variant='outline' onClick={() => history.go(-1)}>
             {t('Go Back')}
           </Button>
-          <Button onClick={() => navigate({ to: '/' })}>
-            {t('Back to Home')}
-          </Button>
+          {/* [user-ui] 已登录回控制台、未登录回首页 */}
+          <ErrorHomeAction />
         </div>
       </div>
     </div>

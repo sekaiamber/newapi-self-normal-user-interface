@@ -16,16 +16,23 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { useRouter } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 
+import { ErrorHomeAction } from './components/error-home-action'
+
 export function MaintenanceError() {
   const { t } = useTranslation()
+  const { history } = useRouter()
   return (
     <div className='h-svh'>
-      <div className='m-auto flex h-full w-full flex-col items-center justify-center gap-2'>
-        <h1 className='text-[7rem] leading-tight font-bold'>503</h1>
+      <div className='m-auto flex h-full w-full flex-col items-center justify-center gap-2 px-4'>
+        {/* [user-ui] 状态码用等宽数字字体 */}
+        <h1 className='font-mono text-[7rem] leading-tight font-bold tabular-nums'>
+          503
+        </h1>
         <span className='font-medium'>
           {t('Website is under maintenance!')}
         </span>
@@ -33,8 +40,12 @@ export function MaintenanceError() {
           {t('The site is not available at the moment.')} <br />
           {t("We'll be back online shortly.")}
         </p>
-        <div className='mt-6 flex gap-4'>
-          <Button variant='outline'>{t('Learn more')}</Button>
+        {/* [user-ui] 原"了解更多"按钮没有任何动作（假按钮），改为返回 + 回控制台/首页 */}
+        <div className='mt-6 flex flex-wrap justify-center gap-4'>
+          <Button variant='outline' onClick={() => history.go(-1)}>
+            {t('Go Back')}
+          </Button>
+          <ErrorHomeAction />
         </div>
       </div>
     </div>

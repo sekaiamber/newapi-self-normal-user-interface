@@ -366,7 +366,12 @@ export function NotificationPopover({
         </Tabs>
 
         <div className='flex justify-end'>
-          <Button size='sm' onClick={() => onOpenChange(false)}>
+          {/* [user-ui] "关闭"不是主操作，不用金色主按钮（品牌规范：每个区域只有一个主按钮） */}
+          <Button
+            size='sm'
+            variant='outline'
+            onClick={() => onOpenChange(false)}
+          >
             {t('Close')}
           </Button>
         </div>
