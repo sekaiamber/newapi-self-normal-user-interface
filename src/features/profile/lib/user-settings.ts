@@ -48,3 +48,39 @@ export function normalizeUserSettings(
       parsed.upstream_model_update_notify_enabled || false,
   }
 }
+
+export type NormalizedUserSettings = ReturnType<typeof normalizeUserSettings>
+
+/**
+ * [user-ui] Fields saved by the notification form. "Record IP" and "Accept
+ * unpriced models" are saved on their own from the preferences card (audit
+ * 2.11 P6/P7), so the notification form must never send them: the server-side
+ * merge in updateUserSettings keeps their latest stored values.
+ */
+export const NOTIFICATION_SETTING_FIELDS = [
+  'notify_type',
+  'quota_warning_threshold',
+  'notification_email',
+  'webhook_url',
+  'webhook_secret',
+  'bark_url',
+  'gotify_url',
+  'gotify_token',
+  'gotify_priority',
+  'upstream_model_update_notify_enabled',
+] as const
+
+export type NotificationSettings = Pick<
+  NormalizedUserSettings,
+  (typeof NOTIFICATION_SETTING_FIELDS)[number]
+>
+
+export function pickNotificationSettings(
+  settings: NormalizedUserSettings
+): NotificationSettings {
+  const picked = {} as Record<string, unknown>
+  for (const field of NOTIFICATION_SETTING_FIELDS) {
+    picked[field] = settings[field]
+  }
+  return picked as NotificationSettings
+}

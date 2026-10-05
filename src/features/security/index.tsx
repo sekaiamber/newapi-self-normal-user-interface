@@ -16,11 +16,16 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Link2 } from 'lucide-react'
+// [user-ui] 页面标题改为"安全设置"（信息架构）；"记录 IP"移到个人资料页的偏好卡（审计 2.12 S5）；
+// 未绑定邮箱时提示无法通过邮件找回密码（S4，依据 guide/feature-guide/user/auth.md "Forgot Password Reset"）；
+// 访问令牌卡说明它不是 API 密钥并链接到 API 密钥页（S1，依据 personal-setting.md Security Settings 的警告）。
+import { Link } from '@tanstack/react-router'
+import { Link2, TriangleAlert } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { SectionPageLayout } from '@/components/layout/components/section-page-layout'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
   Empty,
@@ -37,7 +42,6 @@ import { AccountActionCard } from './components/account-action-card'
 import { AccountBindings } from './components/account-bindings'
 import { LoginSessionsCard } from './components/login-sessions-card'
 import { PasskeyCard } from './components/passkey-card'
-import { PrivacyCard } from './components/privacy-card'
 import { TwoFACard } from './components/two-fa-card'
 
 export function Security() {
@@ -82,6 +86,15 @@ export function Security() {
             <h3 id='security-authentication' className='text-sm font-semibold'>
               {t('Login & Authentication')}
             </h3>
+            {!profile.email && (
+              <Alert className='bg-warning/10'>
+                <TriangleAlert className='text-warning' aria-hidden='true' />
+                <AlertTitle>{t('account.security.noEmail.title')}</AlertTitle>
+                <AlertDescription>
+                  {t('account.security.noEmail.desc')}
+                </AlertDescription>
+              </Alert>
+            )}
             <AccountActionCard
               action='password'
               username={profile.username}
@@ -105,7 +118,19 @@ export function Security() {
               {t('Sessions & Access')}
             </h3>
             <LoginSessionsCard />
-            <AccessTokenCard />
+            <AccessTokenCard
+              hint={
+                <>
+                  {t('account.security.accessToken.hint')}{' '}
+                  <Link
+                    to='/keys'
+                    className='text-primary-ink font-medium underline underline-offset-4'
+                  >
+                    {t('account.security.accessToken.goKeys')}
+                  </Link>
+                </>
+              }
+            />
           </section>
           <section aria-labelledby='security-account' className='space-y-4'>
             <h3 id='security-account' className='text-sm font-semibold'>
@@ -125,12 +150,6 @@ export function Security() {
             <PasskeyCard loading={loading} />
             <TwoFACard loading={loading} />
           </div>
-          <section aria-labelledby='security-privacy' className='space-y-4'>
-            <h3 id='security-privacy' className='text-sm font-semibold'>
-              {t('Privacy')}
-            </h3>
-            <PrivacyCard profile={profile} onUpdate={refreshProfile} />
-          </section>
         </aside>
       </div>
     )
@@ -139,7 +158,7 @@ export function Security() {
   return (
     <SectionPageLayout>
       <SectionPageLayout.Title>
-        {t('Security & Access')}
+        {t('account.security.title')}
       </SectionPageLayout.Title>
       <SectionPageLayout.Content>
         <div className='mx-auto w-full max-w-7xl'>{content}</div>

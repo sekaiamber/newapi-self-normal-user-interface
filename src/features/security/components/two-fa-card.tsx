@@ -16,6 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+// [user-ui] 审计 2.12 S2/S3：卡片只保留一个名称和一句说明（不再重复"两步验证/为账户增加安全层"）；
+// "启用"是可选项，改为次要按钮。
 import { Shield, AlertTriangle, RefreshCw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
@@ -91,7 +93,7 @@ export function TwoFACard({ loading: pageLoading }: TwoFACardProps) {
             {t('Two-Factor Authentication')}
           </CardTitle>
           <CardDescription className='text-xs sm:text-sm'>
-            {t('Add an extra layer of security to your account')}
+            {t('account.security.twoFa.desc')}
           </CardDescription>
         </CardHeader>
 
@@ -105,7 +107,6 @@ export function TwoFACard({ loading: pageLoading }: TwoFACardProps) {
                 </IconBadge>
                 <div className='space-y-1'>
                   <div className='flex items-center gap-2'>
-                    <p className='font-medium'>{t('Two-Step Verification')}</p>
                     {status.enabled ? (
                       <StatusBadge
                         label={t('Enabled')}
@@ -135,13 +136,14 @@ export function TwoFACard({ loading: pageLoading }: TwoFACardProps) {
                       ? t('Backup codes remaining: {{count}}', {
                           count: status.backup_codes_remaining,
                         })
-                      : t('Add an extra layer of security to your account')}
+                      : t('account.security.twoFa.off')}
                   </p>
                 </div>
               </div>
 
               {!status.enabled && (
                 <Button
+                  variant='outline'
                   className='w-full sm:w-auto xl:w-full 2xl:w-auto'
                   onClick={setup.start}
                   disabled={setup.active}

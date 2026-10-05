@@ -156,14 +156,20 @@ describe('user settings saves across profile and security', () => {
     })
   })
 
-  it('saving a stale notification form keeps the current IP setting and the notification edits', async () => {
+  // [user-ui] 阈值按余额显示单位输入（默认 USD：1 = 500000 额度点）；表单只提交通知字段，
+  // 服务端已存的"记录 IP"与"接受未定价模型"保持不变。
+  it('saving a stale notification form keeps the current preference settings and the notification edits', async () => {
     const onUpdate = vi.fn()
     vi.spyOn(api, 'get').mockResolvedValue({
       data: {
         success: true,
         data: {
           ...profile,
-          setting: JSON.stringify({ ...settings, record_ip_log: false }),
+          setting: JSON.stringify({
+            ...settings,
+            record_ip_log: false,
+            accept_unset_model_ratio_model: false,
+          }),
         },
       },
     })
@@ -180,15 +186,55 @@ describe('user settings saves across profile and security', () => {
       screen.queryByRole('switch', { name: 'Record IP Address' })
     ).not.toBeInTheDocument()
     fireEvent.change(
-      screen.getByRole('spinbutton', { name: 'Quota Warning Threshold' }),
-      { target: { value: '2700' } }
+      screen.getByRole('spinbutton', { name: 'account.notify.threshold' }),
+      { target: { value: '3' } }
     )
     fireEvent.click(screen.getByRole('button', { name: 'Save Settings' }))
     await waitFor(() => expect(onUpdate).toHaveBeenCalled())
     expect(put).toHaveBeenCalledWith('/api/user/setting', {
       ...settings,
-      quota_warning_threshold: 2700,
+      quota_warning_threshold: 1500000,
       record_ip_log: false,
+      accept_unset_model_ratio_model: false,
     })
+  })
+
+  it('the threshold input shows the stored quota units in the balance unit', () => {
+    render(
+      <NotificationTab
+        profile={{
+          ...profile,
+          setting: JSON.stringify({
+            ...settings,
+            quota_warning_threshold: 500000,
+          }),
+        }}
+        onUpdate={vi.fn()}
+      />
+    )
+    expect(
+      screen.getByRole('spinbutton', { name: 'account.notify.threshold' })
+    ).toHaveValue(1)
+    expect(screen.getByRole('button', { name: 'Save Settings' })).toBeDisabled()
+  })
+
+  it('an invalid threshold blocks saving and is announced', () => {
+    const put = vi.spyOn(api, 'put')
+    render(
+      <NotificationTab
+        profile={{ ...profile, setting: JSON.stringify(settings) }}
+        onUpdate={vi.fn()}
+      />
+    )
+    const input = screen.getByRole('spinbutton', {
+      name: 'account.notify.threshold',
+    })
+    fireEvent.change(input, { target: { value: '' } })
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'account.notify.threshold.invalid'
+    )
+    expect(screen.getByRole('button', { name: 'Save Settings' })).toBeDisabled()
+    expect(put).not.toHaveBeenCalled()
   })
 })
