@@ -743,9 +743,10 @@ export function DetailsDialog(props: DetailsDialogProps) {
             />
           )}
 
+          {/* [user-ui] group wording from the override key logs.group.label */}
           {(props.log.group || other?.group) && (
             <DetailRow
-              label={t('Group')}
+              label={t('logs.group.label')}
               value={props.log.group || other?.group || ''}
               mono
             />

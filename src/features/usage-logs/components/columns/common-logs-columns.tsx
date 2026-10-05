@@ -178,6 +178,17 @@ function buildTypeDetailSegments(
   }
   const isTieredExpr = other.billing_mode === 'tiered_expr'
   const tieredSummary = getTieredBillingSummary(other)
+  // [user-ui] User-facing wording (audit 2.6 L4): "Standard · $2 / $4/M" and
+  // "base · $2 / $10/M" became "In $2 · Out $4 per 1M tokens" (the matched
+  // tier stays in the details dialog), "Per-call" became "Per request", and a
+  // group ratio other than 1 is appended as "price ×1.5" (cost = base price ×
+  // ratio: guide/console/settings/rate-settings.md "Quota Calculation
+  // Formulas"; expression prices too: plugins/billing.md).
+  const priceFactor = getGroupRatio(other)
+  const factorSuffix =
+    priceFactor != null && priceFactor !== 1
+      ? ` · ${t('logs.detail.priceTimes', { value: formatRatioCompact(priceFactor) })}`
+      : ''
   if (isTieredExpr && other.is_task) {
     const tiers = parseTaskTiersFromExpr(
       decodeBillingExprB64(other.expr_b64),
@@ -213,13 +224,33 @@ function buildTypeDetailSegments(
     }
   } else if (isTieredExpr) {
     if (tieredSummary) {
-      const baseEntries = tieredSummary.priceEntries
-        .filter((entry) => ['inputPrice', 'outputPrice'].includes(entry.field))
-        .map((entry) => formatPriceCompact(entry.price))
-      if (baseEntries.length > 0) {
-        const tierLabel = tieredSummary.tier.label || t('Default')
+      const inputEntry = tieredSummary.priceEntries.find(
+        (entry) => entry.field === 'inputPrice'
+      )
+      const outputEntry = tieredSummary.priceEntries.find(
+        (entry) => entry.field === 'outputPrice'
+      )
+      if (inputEntry && outputEntry) {
         segments.push({
-          text: `${tierLabel} · ${formatPriceList(baseEntries, true)}`,
+          text:
+            t('logs.detail.tokenPrices', {
+              input: formatPriceCompact(inputEntry.price),
+              output: formatPriceCompact(outputEntry.price),
+            }) + factorSuffix,
+        })
+      } else if (inputEntry) {
+        segments.push({
+          text:
+            t('logs.detail.inputPrice', {
+              input: formatPriceCompact(inputEntry.price),
+            }) + factorSuffix,
+        })
+      } else if (outputEntry) {
+        segments.push({
+          text:
+            t('logs.detail.outputPrice', {
+              output: formatPriceCompact(outputEntry.price),
+            }) + factorSuffix,
         })
       }
 
@@ -268,16 +299,6 @@ function buildTypeDetailSegments(
       })
     }
   } else {
-    // [user-ui] User-facing wording (audit 2.6 L4): "Standard · $2 / $4/M"
-    // became "In $2 · Out $4 per 1M tokens", "Per-call" became "Per request",
-    // and a group ratio other than 1 is appended as "price ×1.5" (the cost is
-    // base price × ratio, guide/console/settings/rate-settings.md "Quota
-    // Calculation Formulas").
-    const priceFactor = getGroupRatio(other)
-    const factorSuffix =
-      priceFactor != null && priceFactor !== 1
-        ? ` · ${t('logs.detail.priceTimes', { value: formatRatioCompact(priceFactor) })}`
-        : ''
     const modelPrice = other.model_price
     const isPerCall = isPerCallBilling(modelPrice)
     if (isPerCall && modelPrice != null) {

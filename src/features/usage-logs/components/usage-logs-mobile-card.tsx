@@ -225,8 +225,9 @@ function DrawingLogsCard<TData>({
           primaryOnly
         />
         <SummaryField label={t('Image')} cell={cells.get('image_url')} />
+        {/* [user-ui] "提示" → "提示词" */}
         <SummaryField
-          label={t('Prompt')}
+          label={t('logs.col.prompt')}
           cell={cells.get('prompt')}
           primaryOnly
         />

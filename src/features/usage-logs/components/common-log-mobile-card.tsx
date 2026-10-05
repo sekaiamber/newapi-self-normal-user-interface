@@ -115,7 +115,8 @@ export function CommonLogMobileCard<TData>(props: {
       sensitive: true,
     },
     group: {
-      label: t('Group'),
+      // [user-ui] group wording from the override key logs.group.label
+      label: t('logs.group.label'),
       value: group,
       visible:
         isAdminView && displayable && props.cells.has('token_name') && !!group,

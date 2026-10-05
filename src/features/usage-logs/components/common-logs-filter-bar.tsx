@@ -375,14 +375,16 @@ export function CommonLogsFilterBar<TData>(
       />
     </LogsFilterField>
   )
+  // [user-ui] The word for backend groups lives in one override key
+  // (logs.group.label) so it can be changed in one place.
   const groupFilter = showGroupFilter ? (
     <LogsFilterField className={sensitiveInputClass}>
       <Combobox
         options={groupOptions}
         allowCustomValue
-        aria-label={t('Group')}
-        emptyText={t('No group found.')}
-        placeholder={t('Group')}
+        aria-label={t('logs.group.label')}
+        emptyText={t('logs.group.empty')}
+        placeholder={t('logs.group.label')}
         className='h-8 min-w-0 text-sm leading-5'
         value={filters.group || ''}
         onValueChange={(value) => handleChange('group', value ?? '')}

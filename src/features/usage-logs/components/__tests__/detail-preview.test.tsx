@@ -417,3 +417,16 @@ test('an error record shows its message in the error color', () => {
     'text-destructive'
   )
 })
+
+test('a token-priced expression tier shows plain input and output prices', () => {
+  const preview = renderPreview(
+    {
+      billing_mode: 'tiered_expr',
+      expr_b64: btoa('tier("base", p * 2 + c * 10)'),
+      matched_tier: 'base',
+      group_ratio: 2,
+    },
+    false
+  )
+  expect(preview.textContent).toBe('In $2 · Out $10 per 1M tokens · price ×2')
+})

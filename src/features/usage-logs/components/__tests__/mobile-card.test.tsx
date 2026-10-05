@@ -291,7 +291,9 @@ it('shows the key name but not the group or price factor in the self view', () =
     screen.getByRole('button', { name: 'API key: backend-production-token' })
   ).toBeVisible()
   expect(
-    screen.queryByRole('button', { name: /^Group:/ })
+    screen.queryByRole('button', {
+      name: new RegExp(`^${overridesEn['logs.group.label']}:`),
+    })
   ).not.toBeInTheDocument()
   expect(screen.queryByText(/1\.5×/)).not.toBeInTheDocument()
 })
