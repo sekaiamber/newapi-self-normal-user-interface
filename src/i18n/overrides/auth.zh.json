@@ -1,1 +1,27 @@
-{}
+{
+  "auth.brand.baseUrl": "Base URL",
+  "auth.brand.formats.body": "OpenAI Chat Completions 与 Responses、Claude Messages、Gemini 原生格式。",
+  "auth.brand.formats.paths": "支持的接口路径",
+  "auth.brand.formats.title": "兼容主流接口格式",
+  "auth.brand.headline": "一个 Base URL，\n沿用你熟悉的 API 格式",
+  "auth.brand.key.body": "API 密钥按 Bearer Token 传入，现有 SDK 和客户端只需换成上面的地址。",
+  "auth.brand.key.title": "一个密钥，现有工具直接用",
+  "auth.brand.logs.body": "每次调用的模型、用量和费用都能在控制台查到。",
+  "auth.brand.logs.title": "调用有据可查",
+  "auth.brand.tagline": "{{siteName}} 是一个模型 API 网关：创建 API 密钥，把代码或客户端里的接口地址换成下面的 Base URL，就可以开始调用。",
+  "auth.consent.and": "和",
+  "auth.consent.prefix": "我已阅读并同意",
+  "auth.consent.privacyPolicy": "《隐私政策》",
+  "auth.consent.required": "请先勾选同意后再继续。",
+  "auth.consent.userAgreement": "《用户协议》",
+  "auth.divider.continueWith": "或使用以下方式继续",
+  "auth.divider.signIn": "或使用以下方式登录",
+  "auth.divider.signUp": "或使用以下方式注册",
+  "auth.forgot.emailOnly": "仅适用于已绑定邮箱的账户。",
+  "auth.forgot.remembered": "想起来了？",
+  "auth.provider.wechat": "微信",
+  "auth.reset.copied": "已自动复制到剪贴板。",
+  "auth.reset.copyPassword": "复制新密码",
+  "auth.reset.useThisPassword": "请用这个密码登录，登录后可以在「安全设置」里改成你自己的密码。",
+  "auth.signIn.registered": "账户 {{username}} 已创建，请输入密码登录。"
+}

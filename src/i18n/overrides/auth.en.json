@@ -1,1 +1,27 @@
-{}
+{
+  "auth.brand.baseUrl": "Base URL",
+  "auth.brand.formats.body": "OpenAI Chat Completions and Responses, Claude Messages, and native Gemini.",
+  "auth.brand.formats.paths": "Supported endpoint paths",
+  "auth.brand.formats.title": "Compatible with the major API formats",
+  "auth.brand.headline": "One base URL.\nThe API formats you know.",
+  "auth.brand.key.body": "Send your API key as a Bearer token. Existing SDKs and clients only need the base URL above.",
+  "auth.brand.key.title": "One key for your existing tools",
+  "auth.brand.logs.body": "The model, usage and cost of every call are on record in the console.",
+  "auth.brand.logs.title": "Every call on record",
+  "auth.brand.tagline": "{{siteName}} is a model API gateway. Create an API key, point your code or client at the base URL below, and start calling.",
+  "auth.consent.and": " and the ",
+  "auth.consent.prefix": "I have read and agree to the ",
+  "auth.consent.privacyPolicy": "Privacy Policy",
+  "auth.consent.required": "Please tick the box to agree before continuing.",
+  "auth.consent.userAgreement": "User Agreement",
+  "auth.divider.continueWith": "Or continue with",
+  "auth.divider.signIn": "Or sign in with",
+  "auth.divider.signUp": "Or sign up with",
+  "auth.forgot.emailOnly": "This only works for accounts with a linked email address.",
+  "auth.forgot.remembered": "Remembered it?",
+  "auth.provider.wechat": "WeChat",
+  "auth.reset.copied": "Copied to your clipboard. ",
+  "auth.reset.copyPassword": "Copy new password",
+  "auth.reset.useThisPassword": "Sign in with this password, then change it to your own under Security settings.",
+  "auth.signIn.registered": "Account {{username}} created. Enter your password to sign in."
+}

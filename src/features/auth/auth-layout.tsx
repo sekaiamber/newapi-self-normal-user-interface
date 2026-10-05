@@ -16,47 +16,37 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Link } from '@tanstack/react-router'
-import { useTranslation } from 'react-i18next'
+// [user-ui] 双栏认证布局（审计 2.13 U1/U8）：宽屏左栏品牌区，右栏表单；窄屏只留顶部品牌条。
+// Logo 不再裁成圆形（默认品牌标识见 AuthBrandMark）；右上角放语言与明暗切换（复用共享组件）；
+// 底部挂 AGPL 源码/许可声明（compact）。
+import { LanguageSwitcher } from '@/components/language-switcher'
+import { SourceNotice } from '@/components/legal/source-notice'
+import { ThemeSwitch } from '@/components/theme-switch'
 
-import { Skeleton } from '@/components/ui/skeleton'
-import { useSystemConfig } from '@/hooks/use-system-config'
+import { AuthBrandMark, AuthBrandPanel } from './components/auth-brand'
 
 type AuthLayoutProps = {
   children: React.ReactNode
 }
 
-export function AuthLayout({ children }: AuthLayoutProps) {
-  const { t } = useTranslation()
-  const { systemName, logo, loading } = useSystemConfig()
-
+export function AuthLayout(props: AuthLayoutProps) {
   return (
-    <div className='relative grid h-svh max-w-none'>
-      <Link
-        to='/'
-        className='absolute top-4 left-4 z-10 flex items-center gap-2 transition-opacity hover:opacity-80 sm:top-8 sm:left-8'
-      >
-        <div className='relative h-8 w-8'>
-          {loading ? (
-            <Skeleton className='absolute inset-0 rounded-full' />
-          ) : (
-            <img
-              src={logo}
-              alt={t('Logo')}
-              className='h-8 w-8 rounded-full object-cover'
-            />
-          )}
-        </div>
-        {loading ? (
-          <Skeleton className='h-6 w-24' />
-        ) : (
-          <h1 className='text-xl font-medium'>{systemName}</h1>
-        )}
-      </Link>
-      <div className='container flex items-center pt-16 sm:pt-0'>
-        <div className='mx-auto flex w-full flex-col justify-center space-y-2 px-4 py-8 sm:w-[480px] sm:p-8'>
-          {children}
-        </div>
+    <div className='bg-background text-foreground grid min-h-svh lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]'>
+      <AuthBrandPanel className='hidden lg:flex' />
+      <div className='flex min-h-svh min-w-0 flex-col'>
+        <header className='flex items-center gap-3 px-4 pt-4 sm:px-8 sm:pt-6'>
+          <AuthBrandMark className='lg:hidden' />
+          <div className='ms-auto flex items-center gap-1'>
+            <LanguageSwitcher />
+            <ThemeSwitch />
+          </div>
+        </header>
+        <main className='flex flex-1 items-center justify-center px-4 py-10 sm:px-8'>
+          <div className='w-full max-w-[400px]'>{props.children}</div>
+        </main>
+        <footer className='px-4 pb-6 sm:px-8'>
+          <SourceNotice variant='compact' className='text-center' />
+        </footer>
       </div>
     </div>
   )
