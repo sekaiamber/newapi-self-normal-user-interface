@@ -16,6 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+// [user-ui] 线路单元格的新约定（审计 2.5 K5）：不再给每行挂 "1x" 胶囊；
+// 只有非标准价显示方角"Price ×N"，分组说明与价格系数放在提示里；去掉流光动画。
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, test } from 'vitest'
@@ -23,29 +25,19 @@ import { describe, expect, test } from 'vitest'
 const { createInstance } = await import('i18next')
 const { I18nextProvider, initReactI18next } = await import('react-i18next')
 const { TooltipProvider } = await import('@/components/ui/tooltip')
+const { overridesEn } = await import('@/i18n/overrides')
 const { ApiKeyGroupCell } = await import('../api-key-group-cell')
 
 const i18n = createInstance()
 await i18n.use(initReactI18next).init({
   lng: 'en',
-  resources: {
-    en: {
-      translation: {
-        Auto: 'Auto',
-        'Cross-group': 'Cross-group',
-        Ratio: 'Ratio',
-        'Automatically selects the best available group with circuit breaker mechanism':
-          'Automatically selects the best available group with circuit breaker mechanism',
-      },
-    },
-  },
+  resources: { en: { translation: { ...overridesEn } } },
 })
 
 function CellHarness(props: {
   group: string
   ratio?: number | string
-  crossGroupRetry?: boolean
-  shouldReduceMotion?: boolean
+  description?: string
 }) {
   return (
     <I18nextProvider i18n={i18n}>
@@ -53,105 +45,91 @@ function CellHarness(props: {
         <ApiKeyGroupCell
           group={props.group}
           ratio={props.ratio}
-          crossGroupRetry={props.crossGroupRetry ?? false}
-          shouldReduceMotion={props.shouldReduceMotion ?? false}
+          description={props.description}
+          crossGroupRetry={false}
+          shouldReduceMotion={false}
         />
       </TooltipProvider>
     </I18nextProvider>
   )
 }
 
-describe('API key group table cell', () => {
-  test('keeps the group and compact localized multiplier together with one subtle flowing edge', () => {
-    const { container } = render(
-      <CellHarness group='auto' ratio='自动' crossGroupRetry />
-    )
-    const group = screen.getByText('Cross-group')
-    const multiplier = screen
-      .getByText('Auto')
-      .closest<HTMLElement>('[data-slot="badge"]')
-    expect(group).toBeInTheDocument()
-    expect(multiplier).toHaveClass('h-5', 'min-w-12', 'rounded-md')
-    expect(multiplier).not.toHaveTextContent('Ratio')
-    expect(container).not.toHaveTextContent('自动')
-    expect(container.querySelector('[data-auto-group-frame]')).toBeNull()
-    const flow = container.querySelector('[data-auto-group-flow-border]')
-    expect(flow).toHaveClass('auto-group-flow-border-subtle')
-    expect(flow).toHaveAttribute('aria-hidden', 'true')
-    expect(group.closest('[data-api-key-group-cell]')).toContainElement(
-      multiplier
-    )
-  })
-
-  test('keeps the automatic tag visible but static when reduced motion is requested', () => {
-    const { container } = render(
-      <CellHarness group='auto' ratio='Auto' shouldReduceMotion />
-    )
+describe('API key route (group) table cell', () => {
+  test('labels the automatic route without a multiplier or animated border', async () => {
+    const { container } = render(<CellHarness group='auto' ratio='自动' />)
     expect(screen.getByText('Auto')).toBeInTheDocument()
+    expect(container).not.toHaveTextContent('自动')
     expect(container.querySelector('[data-auto-group-flow-border]')).toBeNull()
+    await userEvent.tab()
+    expect(
+      await screen.findByText(
+        'Picks an available route automatically and switches in order when a call fails',
+        { selector: '[data-slot="tooltip-content"] *' }
+      )
+    ).toBeVisible()
   })
 
-  test('does not invent a multiplier while automatic ratio data is unavailable', () => {
-    render(<CellHarness group='auto' />)
-    expect(screen.getByText('Cross-group')).toBeInTheDocument()
-    expect(screen.queryByText('Auto')).not.toBeInTheDocument()
+  test('hides the standard-price multiplier and explains the price in the tooltip', async () => {
+    const { container } = render(
+      <CellHarness group='default' ratio={1} description='Default route' />
+    )
+    expect(screen.getByText('default')).toBeInTheDocument()
+    expect(container).not.toHaveTextContent('1x')
+    expect(container.querySelector('[data-slot="badge"]')).toBeNull()
+    await userEvent.tab()
+    expect(
+      await screen.findByText('Standard price', {
+        selector: '[data-slot="tooltip-content"] *',
+      })
+    ).toBeVisible()
+    expect(
+      screen.getByText('default · Default route', {
+        selector: '[data-slot="tooltip-content"] *',
+      })
+    ).toBeVisible()
   })
 
   test.each([
-    [0.8, 'bg-info/10', 'text-info', 'border-info/30'],
-    [1, 'bg-muted', 'text-muted-foreground', 'border-muted-foreground/30'],
-    [3, 'bg-warning/10', 'text-warning', 'border-warning/30'],
+    [0.8, 'Price ×0.8', 'text-info'],
+    [3, 'Price ×3', 'text-warning'],
   ])(
-    'preserves the original %s multiplier color in the compact layout',
-    (ratio, background, color, border) => {
-      const { container } = render(
-        <CellHarness group='default' ratio={ratio} />
-      )
-      const multiplier = screen.getByText(`${ratio}x`).parentElement
-      expect(multiplier).toHaveClass(
-        background,
-        color,
-        border,
-        'rounded-full',
-        'tabular-nums',
-        'h-5',
-        'min-w-12'
-      )
-      expect(
-        container.querySelector('[data-auto-group-flow-border]')
-      ).toBeNull()
+    'shows a square price badge for the %s multiplier',
+    (ratio, label, color) => {
+      render(<CellHarness group='vip' ratio={ratio} />)
+      const badge = screen.getByText(label).closest('[data-slot="badge"]')
+      expect(badge).toHaveClass('rounded-sm', 'tabular-nums', color)
+      expect(badge).not.toHaveClass('rounded-full')
     }
   )
 
-  test('labels the user group multiplier as inherited without inventing a numeric value', async () => {
+  test('labels an empty group as the account default without inventing a value', async () => {
     render(<CellHarness group='' />)
-    expect(screen.getByText('User Group')).toBeInTheDocument()
-    expect(screen.getByText('Inherited')).toBeInTheDocument()
-    expect(screen.getByText('Inherited').parentElement).toHaveClass(
-      'border-muted-foreground/30',
-      'rounded-full'
-    )
-    expect(screen.queryByText('1x')).not.toBeInTheDocument()
+    expect(screen.getByText('Account default')).toBeInTheDocument()
+    expect(screen.queryByText(/×|1x/)).not.toBeInTheDocument()
     await userEvent.tab()
-    expect(await screen.findByText('Follow user group')).toBeVisible()
+    expect(
+      await screen.findByText("Uses your account's default route", {
+        selector: '[data-slot="tooltip-content"] *',
+      })
+    ).toBeVisible()
   })
 
-  test('keeps a long group name and exact multiplier available through keyboard focus', async () => {
+  test('keeps a long group name truncated with the full name in the tooltip', async () => {
     const groupName = 'production-with-a-very-long-custom-group-name'
     render(<CellHarness group={groupName} ratio={12.345678} />)
     expect(
       screen.getByText(groupName).closest('[data-slot="tooltip-trigger"]')
     ).toHaveClass('max-w-50')
-    expect(screen.getByText('12.345678x')).toBeInTheDocument()
+    expect(screen.getByText('Price ×12.345678')).toBeInTheDocument()
     await userEvent.tab()
     expect(
       await screen.findByText(groupName, {
-        selector: '[data-slot="tooltip-content"]',
+        selector: '[data-slot="tooltip-content"] *',
       })
     ).toBeVisible()
   })
 
-  test('never turns a string-valued normal group ratio into an automatic multiplier', () => {
+  test('never turns a string-valued normal group ratio into a badge', () => {
     render(<CellHarness group='vip' ratio='自动' />)
     expect(screen.getByText('vip')).toBeInTheDocument()
     expect(screen.queryByText('Auto')).not.toBeInTheDocument()

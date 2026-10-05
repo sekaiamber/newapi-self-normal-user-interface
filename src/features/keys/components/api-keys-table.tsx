@@ -19,8 +19,8 @@ For commercial licensing, please contact support@quantumnous.com
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import { flexRender, type Table as TanstackTable } from '@tanstack/react-table'
-import { Database } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { Database, Plus } from 'lucide-react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import {
@@ -31,8 +31,10 @@ import {
   useDataTable,
 } from '@/components/data-table'
 import { StatusBadge } from '@/components/status-badge'
+import { Button } from '@/components/ui/button'
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -51,6 +53,11 @@ import {
   API_KEY_STATUSES,
   ERROR_MESSAGES,
 } from '../constants'
+import { useUserGroupInfo } from '../hooks/use-user-group-info'
+import {
+  API_KEYS_COLUMN_VISIBILITY_STORAGE_KEY,
+  API_KEYS_DEFAULT_COLUMN_VISIBILITY,
+} from '../lib/column-defaults'
 import type { ApiKey } from '../types'
 import { ApiKeyQuotaCell } from './api-key-quota-cell'
 import { ApiKeyActivityCell } from './api-key-timestamp-cell'
@@ -65,7 +72,6 @@ import { DataTableBulkActions } from './data-table-bulk-actions'
 import { DataTableRowActions } from './data-table-row-actions'
 
 const route = getRouteApi('/_authenticated/keys/')
-const API_KEYS_COLUMN_VISIBILITY_STORAGE_KEY = 'api-keys:column-visibility'
 const API_KEYS_MOBILE_SKELETON_IDS = Array.from(
   { length: 5 },
   (_, index) => `api-key-mobile-skeleton-${index + 1}`
@@ -81,7 +87,7 @@ function ApiKeysMobileSkeleton() {
       {API_KEYS_MOBILE_SKELETON_IDS.map((id) => (
         <div
           key={id}
-          className='border-border/60 bg-card space-y-2 rounded-xl border p-3.5'
+          className='border-edge-soft bg-card space-y-2 rounded-lg border-2 p-3.5'
         >
           <div className='flex items-center justify-between'>
             <Skeleton className='h-4 w-32' />
@@ -98,14 +104,27 @@ function ApiKeysMobileSkeleton() {
   )
 }
 
+type ApiKeysEmptyCopy = {
+  title: string
+  description: string
+  action?: ReactNode
+}
+
+// [user-ui] 手机卡片精简（审计 2.5 K3/K5）：名称+状态、密钥+操作、额度、时间与过期；
+// 线路只在账户有多个可选线路时显示；模型/IP 限制只在设置了限制时显示。
+// 卡片改为品牌的 2px 边、小圆角。空状态带"创建第一个密钥"按钮（审计 2.5 K2）。
 function ApiKeysMobileList({
   table,
   isLoading,
   now,
+  showGroup,
+  empty,
 }: {
   table: TanstackTable<ApiKey>
   isLoading: boolean
   now: number
+  showGroup: boolean
+  empty: ApiKeysEmptyCopy
 }) {
   const { t } = useTranslation()
   const rows = table.getRowModel().rows
@@ -114,19 +133,16 @@ function ApiKeysMobileList({
 
   if (!rows.length) {
     return (
-      <div className='rounded-lg border p-8'>
+      <div className='border-edge-soft rounded-lg border-2 p-8'>
         <Empty className='border-none p-0'>
           <EmptyHeader>
             <EmptyMedia variant='icon'>
               <Database className='size-6' />
             </EmptyMedia>
-            <EmptyTitle>{t('No API Keys Found')}</EmptyTitle>
-            <EmptyDescription>
-              {t(
-                'No API keys available. Create your first API key to get started.'
-              )}
-            </EmptyDescription>
+            <EmptyTitle>{empty.title}</EmptyTitle>
+            <EmptyDescription>{empty.description}</EmptyDescription>
           </EmptyHeader>
+          {empty.action != null && <EmptyContent>{empty.action}</EmptyContent>}
         </Empty>
       </div>
     )
@@ -143,12 +159,15 @@ function ApiKeysMobileList({
         const expiryCell = row
           .getAllCells()
           .find((cell) => cell.column.id === 'expired_time')
+        const hasModelLimits =
+          apiKey.model_limits_enabled && Boolean(apiKey.model_limits)
+        const hasIpLimits = Boolean(apiKey.allow_ips?.trim())
 
         return (
           <div
             key={row.id}
             className={cn(
-              'border-border/60 bg-card min-w-0 space-y-2 rounded-xl border p-3.5 text-xs leading-4',
+              'border-edge-soft bg-card min-w-0 space-y-2 rounded-lg border-2 p-3.5 text-xs leading-4',
               isDisabledApiKeyRow(apiKey) && DISABLED_ROW_MOBILE
             )}
           >
@@ -176,20 +195,32 @@ function ApiKeysMobileList({
             </div>
 
             <div className='min-w-0 space-y-3 py-1'>
-              <div className='min-w-0'>
-                {groupCell &&
-                  flexRender(
-                    groupCell.column.columnDef.cell,
-                    groupCell.getContext()
-                  )}
-              </div>
+              {showGroup && groupCell && (
+                <div className='flex min-w-0 items-center gap-2 text-sm'>
+                  <span className='text-muted-foreground shrink-0'>
+                    {t('keys.column.group')}
+                  </span>
+                  <div className='min-w-0 flex-1'>
+                    {flexRender(
+                      groupCell.column.columnDef.cell,
+                      groupCell.getContext()
+                    )}
+                  </div>
+                </div>
+              )}
               <ApiKeyQuotaCell apiKey={apiKey} now={now} variant='card' />
             </div>
 
-            <div className='flex flex-wrap items-center gap-x-5 gap-y-1'>
-              <ModelLimitsCell apiKey={apiKey} detailsTrigger='click' />
-              <IpRestrictionsCell apiKey={apiKey} detailsTrigger='click' />
-            </div>
+            {(hasModelLimits || hasIpLimits) && (
+              <div className='flex flex-wrap items-center gap-x-5 gap-y-1'>
+                {hasModelLimits && (
+                  <ModelLimitsCell apiKey={apiKey} detailsTrigger='click' />
+                )}
+                {hasIpLimits && (
+                  <IpRestrictionsCell apiKey={apiKey} detailsTrigger='click' />
+                )}
+              </div>
+            )}
 
             <div className='grid grid-cols-3 items-start gap-3 border-t pt-2'>
               <div className='col-span-2 min-w-0'>
@@ -200,7 +231,9 @@ function ApiKeysMobileList({
                 />
               </div>
               <div className='min-w-0 space-y-1 [&_[data-slot=status-badge]]:text-xs [&_[data-slot=status-badge]]:font-normal'>
-                <div className='text-muted-foreground'>{t('Expires')}</div>
+                <div className='text-muted-foreground'>
+                  {t('Expiration Time')}
+                </div>
                 {expiryCell &&
                   flexRender(
                     expiryCell.column.columnDef.cell,
@@ -217,7 +250,7 @@ function ApiKeysMobileList({
 
 export function ApiKeysTable() {
   const { t } = useTranslation()
-  const { refreshTrigger } = useApiKeys()
+  const { refreshTrigger, setOpen } = useApiKeys()
   const [now, setNow] = useState(() => Date.now())
   const columns = useApiKeysColumns(now)
 
@@ -309,6 +342,9 @@ export function ApiKeysTable() {
     columns,
     enableRowSelection: true,
     columnFilters,
+    // [user-ui] 线路、模型、IP、时间默认隐藏（审计 2.5 K3）。原来恢复旧版默认列的
+    // effect 已删除：新存储键下不存在旧版偏好。
+    initialColumnVisibility: API_KEYS_DEFAULT_COLUMN_VISIBILITY,
     columnVisibilityStorageKey: API_KEYS_COLUMN_VISIBILITY_STORAGE_KEY,
     globalFilter,
     pagination,
@@ -321,22 +357,34 @@ export function ApiKeysTable() {
     ensurePageInRange,
   })
 
-  const columnVisibility = table.getState().columnVisibility
-  useEffect(() => {
-    // Restore the dates hidden by the previous default when adopting the combined time column.
-    if (
-      columnVisibility.activity_time === undefined &&
-      columnVisibility.created_time === false &&
-      columnVisibility.accessed_time === false &&
-      columnVisibility.expired_time === false
-    ) {
-      table.setColumnVisibility((previous) => ({
-        ...previous,
-        activity_time: true,
-        expired_time: true,
-      }))
-    }
-  }, [columnVisibility, table])
+  // [user-ui] 账户有多个可选线路时，手机卡片才显示线路（审计 2.5 K5 ①）
+  const groupInfo = useUserGroupInfo()
+  const showGroupOnMobile = Object.keys(groupInfo.ratios).length > 1
+
+  // [user-ui] 空状态（审计 2.5 K2）：没有任何密钥时给出用途说明和创建按钮；
+  // 筛选无结果时沿用原文案，不出现创建按钮。
+  const isFiltering =
+    shouldSearch ||
+    columnFilters.some(
+      (filter) => Array.isArray(filter.value) && filter.value.length > 0
+    )
+  const empty: ApiKeysEmptyCopy = isFiltering
+    ? {
+        title: t('No API Keys Found'),
+        description: t(
+          'No API keys available. Create your first API key to get started.'
+        ),
+      }
+    : {
+        title: t('keys.empty.title'),
+        description: t('keys.empty.description'),
+        action: (
+          <Button variant='outline' onClick={() => setOpen('create')}>
+            <Plus />
+            {t('keys.empty.create')}
+          </Button>
+        ),
+      }
 
   return (
     <DataTablePage
@@ -344,10 +392,9 @@ export function ApiKeysTable() {
       columns={columns}
       isLoading={isLoading}
       isFetching={isFetching}
-      emptyTitle={t('No API Keys Found')}
-      emptyDescription={t(
-        'No API keys available. Create your first API key to get started.'
-      )}
+      emptyTitle={empty.title}
+      emptyDescription={empty.description}
+      emptyAction={empty.action}
       skeletonKeyPrefix='api-keys-skeleton'
       applyHeaderSize
       toolbarProps={{
@@ -372,7 +419,13 @@ export function ApiKeysTable() {
         ],
       }}
       mobile={
-        <ApiKeysMobileList table={table} isLoading={isLoading} now={now} />
+        <ApiKeysMobileList
+          table={table}
+          isLoading={isLoading}
+          now={now}
+          showGroup={showGroupOnMobile}
+          empty={empty}
+        />
       }
       getRowClassName={(row) =>
         isDisabledApiKeyRow(row.original) ? DISABLED_ROW_DESKTOP : undefined
