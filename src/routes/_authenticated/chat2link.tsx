@@ -25,6 +25,7 @@ import { toast } from 'sonner'
 import { useActiveChatKey } from '@/features/chat/hooks/use-active-chat-key'
 import { useChatPresets } from '@/features/chat/hooks/use-chat-presets'
 import { resolveChatUrl } from '@/features/chat/lib/chat-links'
+import { useApiBaseUrl } from '@/lib/api-endpoint'
 import { handleServerError } from '@/lib/handle-server-error'
 
 export const Route = createFileRoute('/_authenticated/chat2link')({
@@ -34,7 +35,9 @@ export const Route = createFileRoute('/_authenticated/chat2link')({
 function Chat2LinkPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { chatPresets, serverAddress } = useChatPresets()
+  // [user-ui] 接口地址统一取 useApiBaseUrl()（与密钥页、文档一致）
+  const { chatPresets } = useChatPresets()
+  const serverAddress = useApiBaseUrl()
 
   const firstWebPreset = useMemo(
     () => chatPresets.find((p) => p.type === 'web'),
