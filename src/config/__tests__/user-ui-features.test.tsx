@@ -125,4 +125,27 @@ describe('console sidebar', () => {
     expect(items.some((item) => item.url === '/keys')).toBe(true)
     expect(items.some((item) => item.url === '/profile')).toBe(true)
   })
+
+  // [user-ui] WP-SHELL：信息架构新增"接入文档"入口（/docs）后，侧边栏仍不得出现被禁用功能的路由
+  it('lists the private docs entry and never a disabled feature route', () => {
+    useAuthStore.getState().auth.setUser({
+      id: 1,
+      username: 'alice',
+      role: 1,
+      permissions: { sidebar_settings: true },
+      sidebar_modules: '',
+    })
+    const { result } = renderHook(
+      () => useSidebarConfig(useSidebarData().navGroups),
+      { wrapper: wrapperWithStatus(STATUS_ALL_ENABLED) }
+    )
+    const urls = result.current
+      .flatMap((group) => group.items)
+      .map((item) => String(item.url))
+
+    expect(urls).toContain('/docs')
+    for (const disabled of ['/pricing', '/rankings', '/about']) {
+      expect(urls.some((url) => url.startsWith(disabled))).toBe(false)
+    }
+  })
 })

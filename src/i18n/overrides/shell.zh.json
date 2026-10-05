@@ -1,1 +1,26 @@
-{}
+{
+  "nav.accountActivity": "账户活动",
+  "nav.apiKeys": "API 密钥",
+  "nav.docs": "接入文档",
+  "nav.group.account": "账户",
+  "nav.group.getStarted": "开始使用",
+  "nav.group.usage": "用量",
+  "nav.overview": "概览",
+  "nav.playground": "在线试用",
+  "nav.profile": "个人资料",
+  "nav.security": "安全设置",
+  "nav.taskLogs": "任务记录",
+  "nav.usageLogs": "调用记录",
+  "nav.usageStats": "用量统计",
+  "nav.wallet": "钱包",
+  "shell.error.backToConsole": "返回控制台",
+  "shell.error.contactAdmin": "如果问题持续出现，请联系站点管理员。",
+  "shell.error.contactAdminForAccess": "如果你认为应当有访问权限，请联系站点管理员。",
+  "shell.header.docs": "文档",
+  "shell.menu.account": "账户菜单",
+  "shell.menu.appearance": "外观",
+  "shell.menu.language": "语言",
+  "shell.theme.dark": "深色",
+  "shell.theme.light": "浅色",
+  "shell.theme.system": "跟随系统"
+}

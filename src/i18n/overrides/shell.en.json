@@ -1,1 +1,26 @@
-{}
+{
+  "nav.accountActivity": "Account Activity",
+  "nav.apiKeys": "API Keys",
+  "nav.docs": "Integration Docs",
+  "nav.group.account": "Account",
+  "nav.group.getStarted": "Get Started",
+  "nav.group.usage": "Usage",
+  "nav.overview": "Overview",
+  "nav.playground": "Playground",
+  "nav.profile": "Profile",
+  "nav.security": "Security",
+  "nav.taskLogs": "Task Logs",
+  "nav.usageLogs": "Request Logs",
+  "nav.usageStats": "Usage Stats",
+  "nav.wallet": "Wallet",
+  "shell.error.backToConsole": "Back to Console",
+  "shell.error.contactAdmin": "If this keeps happening, please contact the site administrator.",
+  "shell.error.contactAdminForAccess": "If you think you should have access, please contact the site administrator.",
+  "shell.header.docs": "Docs",
+  "shell.menu.account": "Account menu",
+  "shell.menu.appearance": "Appearance",
+  "shell.menu.language": "Language",
+  "shell.theme.dark": "Dark",
+  "shell.theme.light": "Light",
+  "shell.theme.system": "System"
+}

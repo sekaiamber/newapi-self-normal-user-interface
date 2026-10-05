@@ -66,9 +66,13 @@ export function NavGroup({ title, items }: NavGroupProps) {
 
   return (
     <SidebarGroup className='px-2 py-1'>
-      <SidebarGroupLabel className='text-muted-foreground/70 px-2 text-[11px] font-medium tracking-wider uppercase'>
-        {title}
-      </SidebarGroupLabel>
+      {/* [user-ui] 标题为空的分组（如"概览"）不渲染标题；标题去掉 /70 透明度，
+          保证 11px 小字在侧栏底色上的对比度 */}
+      {title ? (
+        <SidebarGroupLabel className='text-muted-foreground px-2 text-[11px] font-semibold tracking-wider uppercase'>
+          {title}
+        </SidebarGroupLabel>
+      ) : null}
       <SidebarMenu>
         {items.map((item) => {
           const key = `${item.title}-${item.url || item.type}`
