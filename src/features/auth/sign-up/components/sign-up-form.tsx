@@ -17,6 +17,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { zodResolver } from '@hookform/resolvers/zod'
+// [user-ui] 注册成功后直接 navigate（带 history state），见 onSubmit
+import { useNavigate } from '@tanstack/react-router'
 import { Loader2 } from 'lucide-react'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useForm } from 'react-hook-form'
@@ -63,6 +65,8 @@ export function SignUpForm({
   const [isLoading, setIsLoading] = useState(false)
   const [verificationCode, setVerificationCode] = useState('')
   const [agreedToLegal, setAgreedToLegal] = useState(false)
+  // [user-ui] 未勾选协议就尝试注册时高亮勾选框（审计 2.13 U5）
+  const [legalConsentInvalid, setLegalConsentInvalid] = useState(false)
   const [wechatCode, setWeChatCode] = useState('')
   const [isWeChatDialogOpen, setIsWeChatDialogOpen] = useState(false)
   const [isWeChatSubmitting, setIsWeChatSubmitting] = useState(false)
@@ -77,7 +81,8 @@ export function SignUpForm({
     setTurnstileToken,
     validateTurnstile,
   } = useTurnstile()
-  const { redirectToLogin, handleLoginResult } = useAuthRedirect()
+  const { handleLoginResult } = useAuthRedirect()
+  const navigate = useNavigate()
   const {
     isSending: isSendingCode,
     secondsLeft,
@@ -139,11 +144,25 @@ export function SignUpForm({
     }
   }, [])
 
+  /**
+   * [user-ui] 协议未勾选时：提示原因并高亮勾选框，返回 false 阻止本次注册。
+   * 判断条件与官方一致，只是从"禁用按钮"改为"点击后提示"（审计 2.13 U5）。
+   */
+  function ensureLegalConsent(): boolean {
+    if (!requiresLegalConsent || agreedToLegal) return true
+    setLegalConsentInvalid(true)
+    toast.error(legalConsentErrorMessage)
+    return false
+  }
+
+  function handleLegalConsentChange(nextValue: boolean) {
+    setAgreedToLegal(nextValue)
+    if (nextValue) setLegalConsentInvalid(false)
+  }
+
   async function onSubmit(data: z.infer<typeof registerFormSchema>) {
-    if (requiresLegalConsent && !agreedToLegal) {
-      toast.error(legalConsentErrorMessage)
-      return
-    }
+    // [user-ui] 同一判断，未勾选时额外高亮勾选框
+    if (!ensureLegalConsent()) return
 
     // Validate email verification if required
     if (emailVerificationRequired) {
@@ -172,7 +191,12 @@ export function SignUpForm({
 
       if (res?.success) {
         toast.success(t('Account created! Please sign in'))
-        redirectToLogin()
+        // [user-ui] 跳回登录页时带上用户名，登录页预填并提示输入密码（审计 2.13 U2；注册接口不建立会话）
+        void navigate({
+          to: '/sign-in',
+          replace: true,
+          state: (prev) => ({ ...prev, signUpUsername: data.username }),
+        })
       } else {
         handleServerError(createServerError(res, t('Failed to create account')))
       }
@@ -193,10 +217,8 @@ export function SignUpForm({
   }
 
   const handleOpenWeChatDialog = () => {
-    if (requiresLegalConsent && !agreedToLegal) {
-      toast.error(legalConsentErrorMessage)
-      return
-    }
+    // [user-ui] 同一判断，未勾选时额外高亮勾选框
+    if (!ensureLegalConsent()) return
 
     setIsWeChatDialogOpen(true)
   }
@@ -259,7 +281,12 @@ export function SignUpForm({
             <FormItem>
               <FormLabel>{t('Username')}</FormLabel>
               <FormControl>
-                <Input placeholder={t('Enter your username')} {...field} />
+                <Input
+                  placeholder={t('Enter your username')}
+                  // [user-ui] 便于浏览器/密码管理器自动填充（两个密码框同理）
+                  autoComplete='username'
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -276,6 +303,7 @@ export function SignUpForm({
               <FormControl>
                 <PasswordInput
                   placeholder={t('Enter password (8–128 characters)')}
+                  autoComplete='new-password'
                   {...field}
                 />
               </FormControl>
@@ -292,7 +320,11 @@ export function SignUpForm({
             <FormItem>
               <FormLabel>{t('Confirm password')}</FormLabel>
               <FormControl>
-                <PasswordInput placeholder={t('Confirm password')} {...field} />
+                <PasswordInput
+                  placeholder={t('Confirm password')}
+                  autoComplete='new-password'
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -324,71 +356,78 @@ export function SignUpForm({
             />
 
             {/* Verification Code Field */}
-            <div className='flex items-end gap-2'>
-              <div className='flex-1'>
-                <Input
-                  placeholder={t('Verification code')}
-                  value={verificationCode}
-                  onChange={(e) => setVerificationCode(e.target.value)}
-                />
+            {/* [user-ui] 补上可见标签（原来只有占位文字） */}
+            <div className='grid gap-2'>
+              <Label htmlFor='sign-up-verification-code'>
+                {t('Verification code')}
+              </Label>
+              <div className='flex items-end gap-2'>
+                <div className='flex-1'>
+                  <Input
+                    id='sign-up-verification-code'
+                    autoComplete='one-time-code'
+                    placeholder={t('Enter the verification code')}
+                    value={verificationCode}
+                    onChange={(e) => setVerificationCode(e.target.value)}
+                  />
+                </div>
+                <Button
+                  variant='outline'
+                  type='button'
+                  disabled={
+                    isLoading ||
+                    isSendingCode ||
+                    isActive ||
+                    !emailValue ||
+                    !turnstileReady
+                  }
+                  onClick={handleSendVerificationCode}
+                >
+                  {verificationCodeAction}
+                </Button>
               </div>
-              <Button
-                variant='outline'
-                type='button'
-                disabled={
-                  isLoading ||
-                  isSendingCode ||
-                  isActive ||
-                  !emailValue ||
-                  !turnstileReady
-                }
-                onClick={handleSendVerificationCode}
-              >
-                {verificationCodeAction}
-              </Button>
             </div>
           </>
         )}
 
         {/* Turnstile */}
+        {/* [user-ui] 去掉额外的外边距容器，间距由表单 grid 统一 */}
         {isTurnstileEnabled && (
-          <div className='mt-2'>
-            <Turnstile
-              key={turnstileWidgetKey}
-              siteKey={turnstileSiteKey}
-              onVerify={setTurnstileToken}
-            />
-          </div>
+          <Turnstile
+            key={turnstileWidgetKey}
+            siteKey={turnstileSiteKey}
+            onVerify={setTurnstileToken}
+          />
         )}
 
+        {/* [user-ui] 协议勾选在主按钮正上方；未勾选时按钮可点，点击后高亮提示（审计 2.13 U5） */}
         <LegalConsent
           status={status}
           checked={agreedToLegal}
-          onCheckedChange={setAgreedToLegal}
-          className='mt-1'
+          onCheckedChange={handleLegalConsentChange}
+          invalid={legalConsentInvalid}
         />
 
         {/* Submit Button */}
+        {/* [user-ui] 不再因未勾选协议而禁用（点击后由 ensureLegalConsent 提示）；高度与登录页一致 */}
         <Button
           type='submit'
-          className='mt-2 w-full justify-center gap-2'
-          disabled={
-            isLoading ||
-            (requiresLegalConsent && !agreedToLegal) ||
-            !turnstileReady
-          }
+          className='h-10 w-full justify-center gap-2'
+          disabled={isLoading || !turnstileReady}
         >
           {isLoading ? <Loader2 className='h-4 w-4 animate-spin' /> : null}
           {t('Create account')}
         </Button>
 
+        {/* [user-ui] 与登录页同款分隔线；未勾选协议时点击提示而不是禁用按钮 */}
         {oauthRegisterEnabled && (
           <OAuthProviders
             status={status}
-            disabled={isLoading || (requiresLegalConsent && !agreedToLegal)}
+            disabled={isLoading}
             onWeChatLogin={hasWeChatLogin ? handleOpenWeChatDialog : undefined}
             isWeChatLoading={isWeChatSubmitting}
-            className='pt-2'
+            divider={t('auth.divider.signUp')}
+            onBeforeLogin={ensureLegalConsent}
           />
         )}
       </form>
@@ -435,10 +474,11 @@ export function SignUpForm({
         >
           {wechatQrCodeUrl ? (
             <div className='flex justify-center'>
+              {/* [user-ui] 二维码外框改为品牌 2px 边 */}
               <img
                 src={wechatQrCodeUrl}
                 alt={t('WeChat login QR code')}
-                className='h-40 w-40 rounded-md border object-contain'
+                className='border-edge-soft h-40 w-40 rounded-lg border-2 object-contain'
               />
             </div>
           ) : (

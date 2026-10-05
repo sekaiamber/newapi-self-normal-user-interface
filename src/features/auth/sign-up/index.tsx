@@ -19,42 +19,33 @@ For commercial licensing, please contact support@quantumnous.com
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
-import { useStatus } from '@/hooks/use-status'
-
 import { AuthLayout } from '../auth-layout'
-import { TermsFooter } from '../components/terms-footer'
 import { SignUpForm } from './components/sign-up-form'
 
+// [user-ui] 页面标题改为 h1、左对齐；去掉链接后的英文句点；
+// 协议说明并入表单内主按钮上方的勾选框，不再在页面底部重复一句未翻译的 TermsFooter。
 export function SignUp() {
   const { t } = useTranslation()
-  const { status } = useStatus()
 
   return (
     <AuthLayout>
-      <div className='w-full space-y-8'>
-        <div className='space-y-2'>
-          <h2 className='text-center text-2xl font-semibold tracking-tight sm:text-left'>
+      <div className='w-full space-y-6'>
+        <div className='space-y-1.5'>
+          <h1 className='text-2xl font-semibold tracking-tight'>
             {t('Create an account')}
-          </h2>
-          <p className='text-muted-foreground text-left text-sm sm:text-base'>
+          </h1>
+          <p className='text-muted-foreground text-sm'>
             {t('Already have an account?')}{' '}
             <Link
               to='/sign-in'
-              className='hover:text-primary font-medium underline underline-offset-4'
+              className='text-primary-ink font-medium underline-offset-4 hover:underline'
             >
               {t('Sign in')}
             </Link>
-            .
           </p>
         </div>
 
         <SignUpForm />
-
-        <TermsFooter
-          variant='sign-up'
-          status={status}
-          className='text-center'
-        />
       </div>
     </AuthLayout>
   )

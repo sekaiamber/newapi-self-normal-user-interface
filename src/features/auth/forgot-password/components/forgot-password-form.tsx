@@ -101,7 +101,7 @@ export function ForgotPasswordForm({
     <Form {...form}>
       <form
         onSubmit={form.handleSubmit(onSubmit)}
-        className={cn('grid gap-2', className)}
+        className={cn('grid gap-4', className)}
         {...props}
       >
         <FormField
@@ -109,18 +109,29 @@ export function ForgotPasswordForm({
           name='email'
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email</FormLabel>
+              {/* [user-ui] 标签与占位文字走 i18n（原为写死的英文） */}
+              <FormLabel>{t('Email')}</FormLabel>
               <FormControl>
-                <Input placeholder='name@example.com' {...field} />
+                <Input
+                  inputMode='email'
+                  autoComplete='email'
+                  placeholder={t('name@example.com')}
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
 
+        {/* [user-ui] 人机验证移到按钮上方（按钮在验证完成前不可用）；按钮全宽 */}
+        {isTurnstileEnabled && (
+          <Turnstile siteKey={turnstileSiteKey} onVerify={setTurnstileToken} />
+        )}
+
         <Button
           type='submit'
-          className='mt-2'
+          className='h-10 w-full'
           disabled={isLoading || isActive || !turnstileReady}
         >
           {isActive
@@ -128,15 +139,6 @@ export function ForgotPasswordForm({
             : t('Send reset email')}
           {isLoading ? <Loader2 className='animate-spin' /> : <ArrowRight />}
         </Button>
-
-        {isTurnstileEnabled && (
-          <div className='mt-2'>
-            <Turnstile
-              siteKey={turnstileSiteKey}
-              onVerify={setTurnstileToken}
-            />
-          </div>
-        )}
       </form>
     </Form>
   )

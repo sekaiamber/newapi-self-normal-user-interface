@@ -17,11 +17,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useNavigate } from '@tanstack/react-router'
-import { CheckIcon, CopyIcon } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { CopyButton } from '@/components/copy-button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -50,7 +50,8 @@ export function ResetPasswordConfirm({
   const navigate = useNavigate()
   const [newPassword, setNewPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const [copied, setCopied] = useState(false)
+  // [user-ui] 记录自动复制是否成功，界面上只在成功时说"已复制"
+  const [autoCopied, setAutoCopied] = useState(false)
   const {
     secondsLeft,
     isActive,
@@ -76,6 +77,7 @@ export function ResetPasswordConfirm({
         const password = res.data.data
         setNewPassword(password)
         const copySuccess = await copyToClipboard(password)
+        setAutoCopied(copySuccess)
         if (copySuccess) {
           toast.success(
             t('Password reset and copied to clipboard: {{password}}', {
@@ -95,29 +97,17 @@ export function ResetPasswordConfirm({
     }
   }
 
-  async function handleCopy() {
-    if (!newPassword) return
-
-    const copySuccess = await copyToClipboard(newPassword)
-    if (copySuccess) {
-      setCopied(true)
-      toast.success(
-        t('Password copied to clipboard: {{password}}', {
-          password: newPassword,
-        })
-      )
-      setTimeout(() => setCopied(false), 2000)
-    }
-  }
-
+  // [user-ui] 审计 2.13 U4：后端在这里生成随机新密码（不是让用户自己设置，与官方文档
+  // guide/feature-guide/user/auth.md 的描述不同）。新密码改为大字醒目展示 + 复制按钮（共享 CopyButton），
+  // 并提示用它登录后到"安全设置"修改。请求与按钮逻辑不变。
   return (
     <AuthLayout>
-      <div className='w-full space-y-8'>
-        <div className='space-y-2'>
-          <h2 className='text-center text-2xl font-semibold tracking-tight sm:text-left'>
+      <div className='w-full space-y-6'>
+        <div className='space-y-1.5'>
+          <h1 className='text-2xl font-semibold tracking-tight'>
             {t('Reset password')}
-          </h2>
-          <p className='text-muted-foreground text-left text-sm sm:text-base'>
+          </h1>
+          <p className='text-muted-foreground text-sm'>
             {newPassword
               ? t('auth.resetPasswordConfirm.success')
               : t('auth.resetPasswordConfirm.description')}
@@ -145,36 +135,30 @@ export function ResetPasswordConfirm({
           </div>
 
           {newPassword && (
-            <div className='space-y-2'>
-              <Label htmlFor='password'>{t('New password')}</Label>
-              <div className='flex gap-2'>
-                <Input
-                  id='password'
+            <div
+              className='border-edge bg-card space-y-3 rounded-lg border-2 p-4'
+              data-testid='reset-new-password'
+            >
+              <p className='text-sm font-semibold'>{t('New password')}</p>
+              <div className='bg-muted flex items-center gap-2 rounded-lg py-2 ps-3 pe-2'>
+                <code className='min-w-0 flex-1 font-mono text-xl font-semibold tracking-wide break-all select-all'>
+                  {newPassword}
+                </code>
+                <CopyButton
                   value={newPassword}
-                  disabled
-                  className='font-mono'
-                />
-                <Button
-                  type='button'
-                  size='icon'
                   variant='outline'
-                  onClick={handleCopy}
-                >
-                  {copied ? (
-                    <CheckIcon className='h-4 w-4' />
-                  ) : (
-                    <CopyIcon className='h-4 w-4' />
-                  )}
-                </Button>
+                  aria-label={t('auth.reset.copyPassword')}
+                />
               </div>
-              <p className='text-muted-foreground text-xs'>
-                {t('Password has been copied to clipboard')}
+              <p className='text-muted-foreground text-sm'>
+                {autoCopied && t('auth.reset.copied')}
+                {t('auth.reset.useThisPassword')}
               </p>
             </div>
           )}
 
           <Button
-            className='w-full'
+            className='h-10 w-full'
             onClick={
               newPassword
                 ? () => navigate({ to: '/sign-in', replace: true })
