@@ -31,12 +31,14 @@ const DASHBOARD_SECTIONS = [
   },
   {
     id: 'models',
-    titleKey: 'Model Call Analytics',
+    // [user-ui] Tab 名称：按模型（页面标题统一为"用量统计"，见 index.tsx）
+    titleKey: 'usage.stats.tab.byModel',
     build: () => null,
   },
   {
     id: 'flow',
-    titleKey: 'Flow',
+    // [user-ui] 原"分流"：实际展示每个密钥的用量流向哪些模型，改名"按密钥"
+    titleKey: 'usage.stats.tab.byKey',
     build: () => null,
   },
   {

@@ -16,16 +16,13 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Zap, ExternalLink, Gauge } from 'lucide-react'
+import { Zap, ExternalLink } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { CopyButton } from '@/components/copy-button'
 import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
-import {
-  getLatencyColorClass,
-  openExternalSpeedTest,
-} from '@/features/dashboard/lib/api-info'
+import { getLatencyColorClass } from '@/features/dashboard/lib/api-info'
 import type { ApiInfoItem, PingStatus } from '@/features/dashboard/types'
 import { getBgColorClass } from '@/lib/colors'
 import { cn } from '@/lib/utils'
@@ -51,16 +48,17 @@ export function ApiInfoItemComponent(props: ApiInfoItemProps) {
           )}
         />
 
+        {/* [user-ui] 说明与地址去掉半透明（对比度不足） */}
         <div className='flex min-w-0 flex-1 flex-col gap-0.5'>
           <div className='flex items-baseline gap-2'>
             <span className='font-mono text-sm font-semibold'>
               {item.route}
             </span>
-            <span className='text-muted-foreground/60 hidden truncate text-xs md:inline'>
+            <span className='text-muted-foreground hidden truncate text-xs md:inline'>
               {item.description}
             </span>
           </div>
-          <span className='text-muted-foreground/40 truncate font-mono text-xs'>
+          <span className='text-muted-foreground truncate font-mono text-xs'>
             {item.url}
           </span>
         </div>
@@ -106,15 +104,7 @@ export function ApiInfoItemComponent(props: ApiInfoItemProps) {
             />
           </Button>
 
-          <Button
-            variant='ghost'
-            size='sm'
-            onClick={() => openExternalSpeedTest(item.url)}
-            className='hidden size-7 p-0 sm:inline-flex'
-            title={t('External Speed Test')}
-          >
-            <Gauge className='size-3.5' />
-          </Button>
+          {/* [user-ui] 去掉"外部测速"按钮：它打开第三方站点 tcptest.cn（审计 2.2 #8） */}
 
           <CopyButton
             value={item.url}

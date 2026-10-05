@@ -37,6 +37,7 @@ import { useAuthStore } from '@/stores/auth-store'
 
 import { ModelsChartPreferences } from './components/models/models-chart-preferences'
 import { ModelsFilter } from './components/models/models-filter-dialog'
+import { UsageEmptyState } from './components/models/usage-empty-state'
 import { OverviewDashboard } from './components/overview/overview-dashboard'
 import { DEFAULT_TIME_GRANULARITY } from './constants'
 import {
@@ -113,9 +114,10 @@ const LazyFlowCharts = lazy(() =>
   }))
 )
 
+// [user-ui] 加载占位的外框改为品牌 2px 边（与共享 Card 一致）
 function LogStatCardsFallback() {
   return (
-    <div className='overflow-hidden rounded-lg border'>
+    <div className='border-edge-soft overflow-hidden rounded-lg border-2'>
       <div className='divide-border/60 grid grid-cols-2 divide-x sm:grid-cols-3 lg:grid-cols-5'>
         {LOG_STAT_CARD_FALLBACK_KEYS.map((key, index) => (
           <div
@@ -141,7 +143,7 @@ function LogStatCardsFallback() {
 
 function ModelChartsFallback() {
   return (
-    <div className='overflow-hidden rounded-lg border'>
+    <div className='border-edge-soft overflow-hidden rounded-lg border-2'>
       <div className='flex items-center justify-between border-b px-4 py-3 sm:px-5'>
         <Skeleton className='h-5 w-32' />
         <Skeleton className='h-8 w-72' />
@@ -155,7 +157,7 @@ function ModelChartsFallback() {
 
 function PerformanceOverviewFallback() {
   return (
-    <div className='overflow-hidden rounded-lg border'>
+    <div className='border-edge-soft overflow-hidden rounded-lg border-2'>
       <div className='flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 sm:px-5'>
         <div className='flex items-center gap-2'>
           <Skeleton className='h-4 w-24' />
@@ -168,7 +170,7 @@ function PerformanceOverviewFallback() {
         ))}
         <div className='ml-auto flex items-center gap-2'>
           {PERFORMANCE_MODEL_FALLBACK_KEYS.map((key) => (
-            <Skeleton key={key} className='h-5 w-28 rounded-full' />
+            <Skeleton key={key} className='h-5 w-28 rounded-sm' />
           ))}
         </div>
       </div>
@@ -176,18 +178,30 @@ function PerformanceOverviewFallback() {
   )
 }
 
-const SECTION_META: Record<DashboardSectionId, { titleKey: string }> = {
+// [user-ui] 页面标题统一为"用量统计"（侧边栏同名，审计 1.4、2.1），Tab 按统计维度命名：
+// "按模型"（原"模型调用分析"）、"按密钥"（原"分流"，实际是密钥 → 分组 → 模型的用量流向图）。
+// 每个 Tab 下加一句说明，告诉用户这里看的是什么。管理员的"用户分析"不变。
+const SECTION_META: Record<
+  DashboardSectionId,
+  { titleKey: string; tabKey: string; descriptionKey?: string }
+> = {
   overview: {
     titleKey: 'Overview',
+    tabKey: 'Overview',
   },
   models: {
-    titleKey: 'Model Call Analytics',
+    titleKey: 'usage.stats.title',
+    tabKey: 'usage.stats.tab.byModel',
+    descriptionKey: 'usage.stats.tab.byModelDescription',
   },
   flow: {
-    titleKey: 'Flow',
+    titleKey: 'usage.stats.title',
+    tabKey: 'usage.stats.tab.byKey',
+    descriptionKey: 'usage.stats.tab.byKeyDescription',
   },
   users: {
     titleKey: 'User Analytics',
+    tabKey: 'User Analytics',
   },
 }
 
@@ -200,7 +214,10 @@ export function Dashboard() {
     DASHBOARD_DEFAULT_SECTION) as DashboardSectionId
 
   const [modelData, setModelData] = useState<QuotaDataItem[]>([])
-  const [dataLoading, setDataLoading] = useState(false)
+  // [user-ui] 初始即为加载中，避免数据返回前闪现"没有调用记录"的空状态；
+  // 另记录加载失败，失败时不显示"没有调用记录"
+  const [dataLoading, setDataLoading] = useState(true)
+  const [dataError, setDataError] = useState(false)
   const [chartPreferences, setChartPreferences] =
     useState<DashboardChartPreferences>(() => getSavedChartPreferences())
   const [modelFilters, setModelFilters] = useState<DashboardFilters>(() =>
@@ -227,9 +244,10 @@ export function Dashboard() {
   }, [chartPreferences])
 
   const handleDataUpdate = useCallback(
-    (data: QuotaDataItem[], loading: boolean) => {
+    (data: QuotaDataItem[], loading: boolean, error = false) => {
       setModelData(data)
       setDataLoading(loading)
+      setDataError(error)
     },
     []
   )
@@ -275,6 +293,9 @@ export function Dashboard() {
           currentFilters={modelFilters}
           onFilterChange={handleFilterChange}
           onReset={handleResetFilters}
+          // [user-ui] 普通用户只能选时间范围，标题与说明照实写
+          titleKey='usage.stats.filter.title'
+          descriptionKey='usage.stats.filter.description'
         />
       </>
     ) : null
@@ -310,12 +331,15 @@ export function Dashboard() {
           currentFilters={modelFilters}
           onFilterChange={handleFilterChange}
           onReset={handleResetFilters}
-          titleKey='Flow Filters'
-          descriptionKey='Filter the traffic flow view by time range and user.'
+          // [user-ui] 普通用户只能选时间范围，标题与说明照实写
+          titleKey='usage.stats.filter.title'
+          descriptionKey='usage.stats.filter.description'
         />
       </>
     ) : null
   const sectionActions = modelActions ?? flowActions
+  const showModelsEmptyState =
+    !dataLoading && !dataError && modelData.length === 0
 
   if (activeSection === 'overview') {
     return <OverviewDashboard />
@@ -326,24 +350,32 @@ export function Dashboard() {
       <SectionPageLayout.Title>{t(meta.titleKey)}</SectionPageLayout.Title>
       <SectionPageLayout.Content>
         <div className='space-y-3 sm:space-y-4'>
-          <div className='flex flex-wrap items-center justify-between gap-1.5 sm:gap-2'>
-            {showSectionTabs ? (
-              <Tabs value={activeSection} onValueChange={handleSectionChange}>
-                <TabsList className='max-w-full flex-wrap justify-start group-data-horizontal/tabs:h-auto'>
-                  {visibleSections.map((section) => (
-                    <TabsTrigger key={section} value={section}>
-                      {t(SECTION_META[section].titleKey)}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
-              </Tabs>
-            ) : (
-              <div />
-            )}
-            {sectionActions != null && (
-              <div className='flex shrink-0 flex-wrap items-center gap-1.5 sm:gap-2'>
-                {sectionActions}
-              </div>
+          <div className='flex flex-col gap-1.5'>
+            <div className='flex flex-wrap items-center justify-between gap-1.5 sm:gap-2'>
+              {showSectionTabs ? (
+                <Tabs value={activeSection} onValueChange={handleSectionChange}>
+                  <TabsList className='max-w-full flex-wrap justify-start group-data-horizontal/tabs:h-auto'>
+                    {visibleSections.map((section) => (
+                      <TabsTrigger key={section} value={section}>
+                        {t(SECTION_META[section].tabKey)}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                </Tabs>
+              ) : (
+                <div />
+              )}
+              {sectionActions != null && (
+                <div className='flex shrink-0 flex-wrap items-center gap-1.5 sm:gap-2'>
+                  {sectionActions}
+                </div>
+              )}
+            </div>
+            {/* [user-ui] 一句话说明当前 Tab 统计的是什么 */}
+            {meta.descriptionKey != null && (
+              <p className='text-muted-foreground text-xs sm:text-sm'>
+                {t(meta.descriptionKey)}
+              </p>
             )}
           </div>
           {activeSection === 'models' && (
@@ -363,32 +395,44 @@ export function Dashboard() {
                   </Suspense>
                 </FadeIn>
               )}
-              <FadeIn delay={0.1}>
-                <Suspense fallback={<ModelChartsFallback />}>
-                  <LazyConsumptionDistributionChart
-                    data={modelData}
-                    loading={dataLoading}
-                    defaultChartType={
-                      chartPreferences.consumptionDistributionChart
-                    }
-                    timeGranularity={
-                      modelFilters.time_granularity || DEFAULT_TIME_GRANULARITY
-                    }
-                  />
-                </Suspense>
-              </FadeIn>
-              <FadeIn delay={0.15}>
-                <Suspense fallback={<ModelChartsFallback />}>
-                  <LazyModelCharts
-                    data={modelData}
-                    loading={dataLoading}
-                    defaultChartTab={chartPreferences.modelAnalyticsChart}
-                    timeGranularity={
-                      modelFilters.time_granularity || DEFAULT_TIME_GRANULARITY
-                    }
-                  />
-                </Suspense>
-              </FadeIn>
+              {/* [user-ui] 所选时间内没有调用时只显示一个空状态（审计 2.3 #3），
+                  不再画两张 0–1 的空坐标轴 */}
+              {showModelsEmptyState ? (
+                <FadeIn delay={0.1}>
+                  <UsageEmptyState />
+                </FadeIn>
+              ) : (
+                <>
+                  <FadeIn delay={0.1}>
+                    <Suspense fallback={<ModelChartsFallback />}>
+                      <LazyConsumptionDistributionChart
+                        data={modelData}
+                        loading={dataLoading}
+                        defaultChartType={
+                          chartPreferences.consumptionDistributionChart
+                        }
+                        timeGranularity={
+                          modelFilters.time_granularity ||
+                          DEFAULT_TIME_GRANULARITY
+                        }
+                      />
+                    </Suspense>
+                  </FadeIn>
+                  <FadeIn delay={0.15}>
+                    <Suspense fallback={<ModelChartsFallback />}>
+                      <LazyModelCharts
+                        data={modelData}
+                        loading={dataLoading}
+                        defaultChartTab={chartPreferences.modelAnalyticsChart}
+                        timeGranularity={
+                          modelFilters.time_granularity ||
+                          DEFAULT_TIME_GRANULARITY
+                        }
+                      />
+                    </Suspense>
+                  </FadeIn>
+                </>
+              )}
             </>
           )}
           {activeSection === 'users' && (

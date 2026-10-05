@@ -37,10 +37,11 @@ export const TIME_RANGE_BY_GRANULARITY = {
   week: 30,
 } as const
 
+// [user-ui] 粒度名称用独立 key：官方 "Week" 的中文是"本周"，在这里应为"周"
 export const TIME_GRANULARITY_OPTIONS = [
-  { label: 'Hour', value: 'hour' },
-  { label: 'Day', value: 'day' },
-  { label: 'Week', value: 'week' },
+  { label: 'usage.stats.granularity.hour', value: 'hour' },
+  { label: 'usage.stats.granularity.day', value: 'day' },
+  { label: 'usage.stats.granularity.week', value: 'week' },
 ] as const
 
 export const TIME_RANGE_PRESETS = [

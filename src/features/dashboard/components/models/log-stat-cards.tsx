@@ -40,7 +40,12 @@ import { useAuthStore } from '@/stores/auth-store'
 
 interface LogStatCardsProps {
   filters?: DashboardFilters
-  onDataUpdate?: (data: QuotaDataItem[], loading: boolean) => void
+  // [user-ui] 第三个参数标记加载失败，页面据此区分"没有数据"与"加载失败"
+  onDataUpdate?: (
+    data: QuotaDataItem[],
+    loading: boolean,
+    error?: boolean
+  ) => void
 }
 
 const MAX_INLINE_STAT_CHARS = 9
@@ -102,7 +107,7 @@ export function LogStatCards(props: LogStatCardsProps) {
         if (abortController.signal.aborted) return
         setStats(null)
         setError(true)
-        onDataUpdate?.([], false)
+        onDataUpdate?.([], false, true)
       })
       .finally(() => {
         if (!abortController.signal.aborted) {
@@ -143,8 +148,9 @@ export function LogStatCards(props: LogStatCardsProps) {
   })
 
   return (
-    <div className='overflow-hidden rounded-lg border'>
-      <div className='divide-border/60 grid min-w-0 grid-cols-2 divide-x sm:grid-cols-3 lg:grid-cols-5'>
+    // [user-ui] 品牌 2px 边卡片；标题不再全大写；说明文字去掉半透明（对比度不足）
+    <div className='bg-card border-edge-soft overflow-hidden rounded-lg border-2'>
+      <div className='divide-border grid min-w-0 grid-cols-2 divide-x sm:grid-cols-3 lg:grid-cols-5'>
         {items.map((it, idx) => {
           const Icon = it.icon
           let valueContent
@@ -161,7 +167,7 @@ export function LogStatCards(props: LogStatCardsProps) {
                 <div className='text-muted-foreground mt-1 font-mono text-base leading-tight font-bold tracking-tight tabular-nums sm:mt-2 sm:text-2xl sm:leading-normal'>
                   --
                 </div>
-                <div className='text-muted-foreground/40 mt-1 hidden text-xs md:block'>
+                <div className='text-muted-foreground mt-1 hidden text-xs md:block'>
                   {it.desc}
                 </div>
               </>
@@ -175,7 +181,7 @@ export function LogStatCards(props: LogStatCardsProps) {
                 >
                   {it.value}
                 </div>
-                <div className='text-muted-foreground/60 mt-1 hidden text-xs md:block'>
+                <div className='text-muted-foreground mt-1 hidden text-xs md:block'>
                   {it.desc}
                 </div>
               </>
@@ -200,7 +206,7 @@ export function LogStatCards(props: LogStatCardsProps) {
                 >
                   <Icon />
                 </IconBadge>
-                <div className='text-muted-foreground truncate text-[11px] leading-4 font-medium tracking-wide uppercase sm:text-xs sm:tracking-wider'>
+                <div className='text-muted-foreground truncate text-[11px] leading-4 font-medium sm:text-xs'>
                   {it.title}
                 </div>
               </div>

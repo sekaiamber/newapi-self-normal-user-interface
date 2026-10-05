@@ -237,6 +237,7 @@ export function StatCard(props: StatCardProps) {
   const iconTone = props.iconTone ?? ICON_TONE_BY_STAT_TONE[tone]
   const sparklineVariant = props.sparklineVariant ?? 'bars'
   let valueContent: ReactNode
+  // [user-ui] 说明文字去掉半透明（text-muted-foreground/60 对比度不足 4.5:1）
   if (props.loading) {
     valueContent = (
       <div
@@ -262,7 +263,7 @@ export function StatCard(props: StatCardProps) {
         </div>
         <p
           className={cn(
-            'text-muted-foreground/60 line-clamp-1 text-[11px] sm:text-xs',
+            'text-muted-foreground line-clamp-1 text-[11px] sm:text-xs',
             props.compactMobile && 'hidden sm:block'
           )}
         >
@@ -278,7 +279,7 @@ export function StatCard(props: StatCardProps) {
         </div>
         <p
           className={cn(
-            'text-muted-foreground/60 line-clamp-1 text-[11px] leading-relaxed sm:text-xs',
+            'text-muted-foreground line-clamp-1 text-[11px] leading-relaxed sm:text-xs',
             props.compactMobile && 'hidden sm:block'
           )}
         >
@@ -288,9 +289,12 @@ export function StatCard(props: StatCardProps) {
     )
   }
 
-  let visualization: ReactNode
+  // [user-ui] 没有趋势数据也没有明细时不画空的迷你图（例如"累计"类数字没有时间序列）
+  let visualization: ReactNode = null
   if (props.details?.length) {
     visualization = <StatCardDetails details={props.details} />
+  } else if (!props.sparkline?.length) {
+    visualization = null
   } else if (sparklineVariant === 'line') {
     visualization = <LineSparkline values={props.sparkline} tone={tone} />
   } else {
@@ -300,7 +304,9 @@ export function StatCard(props: StatCardProps) {
   return (
     <div
       className={cn(
-        'group flex flex-col justify-between sm:min-h-32 sm:gap-3',
+        'group flex flex-col sm:min-h-32 sm:gap-3',
+        // [user-ui] 没有迷你图时数值紧跟标题，与有迷你图的卡片数值对齐
+        visualization != null && 'justify-between',
         props.compactMobile ? 'gap-1' : 'gap-1.5'
       )}
     >
@@ -325,7 +331,9 @@ export function StatCard(props: StatCardProps) {
 
       {valueContent}
 
-      <div className='hidden sm:block'>{visualization}</div>
+      {visualization != null && (
+        <div className='hidden sm:block'>{visualization}</div>
+      )}
     </div>
   )
 }

@@ -125,12 +125,23 @@ describe('overview setup guide', () => {
 
     const toggle = await screen.findByRole('button', { name: 'Setup guide' })
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    // [user-ui] 概览先显示账户状态（余额、用量），文案改用 usage.* 覆盖层 key（测试环境不加载译文）
     expect(
       screen.getAllByRole('heading').map((heading) => heading.textContent)
-    ).toEqual(['Overview', 'Usage at a glance'])
+    ).toEqual([
+      'Overview',
+      'usage.overview.balance',
+      'usage.overview.usageTitle',
+    ])
     expect(screen.queryByText('Setup guide complete')).not.toBeInTheDocument()
     expect(screen.queryByText('Setup progress: 3/3')).not.toBeInTheDocument()
-    for (const name of ['API Keys', 'Channels', 'Usage Logs', 'Pricing']) {
+    for (const name of [
+      'API Keys',
+      'Channels',
+      'usage.guide.links.docs',
+      'usage.guide.links.logs',
+      'usage.guide.links.pricing',
+    ]) {
       expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
     }
     const panel = document.getElementById(
@@ -153,13 +164,17 @@ describe('overview setup guide', () => {
       document.getElementById(toggle.getAttribute('aria-controls') ?? '')
     ).toBeVisible()
     expect(
-      screen.getByRole('heading', {
-        name: 'Build on your API gateway in minutes',
-      })
+      screen.getByRole('heading', { name: 'usage.guide.title' })
     ).toBeVisible()
+    // [user-ui] 相关链接（原"推荐操作"卡）：接入文档、调用记录；本文件打开了全部开关，定价链接也在
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /^API Keys/ })).toBeVisible()
+      expect(
+        screen.getByRole('button', { name: 'usage.guide.links.docs' })
+      ).toBeVisible()
     )
+    expect(
+      screen.getByRole('button', { name: 'usage.guide.links.pricing' })
+    ).toBeVisible()
 
     await user.keyboard(' ')
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
@@ -204,7 +219,13 @@ describe('overview setup guide', () => {
     expect(
       screen.getByText('Setup guide is collapsed. Expand it anytime.')
     ).toBeVisible()
-    expect(screen.getByRole('button', { name: 'API Keys' })).toBeVisible()
+    // [user-ui] 收起时只给出"下一步"一个主按钮（这里是充值），不再重复快捷入口
+    expect(
+      screen.getByRole('button', { name: 'usage.guide.step.credits.action' })
+    ).toBeVisible()
+    expect(
+      screen.queryByRole('button', { name: 'usage.guide.links.docs' })
+    ).not.toBeInTheDocument()
     expect(
       screen.queryByRole('button', { name: 'Setup guide' })
     ).not.toBeInTheDocument()
@@ -244,9 +265,11 @@ describe('overview setup guide', () => {
     keyLookupError = new Error('Key lookup unavailable')
     await renderOverview()
 
-    expect(
-      await screen.findByRole('button', { name: 'Hide setup guide' })
-    ).toBeVisible()
+    // [user-ui] 引导卡现在排在账户状态卡之后，入场动画可能尚未结束，等待其可见
+    const hideButton = await screen.findByRole('button', {
+      name: 'Hide setup guide',
+    })
+    await waitFor(() => expect(hideButton).toBeVisible())
     expect(
       screen.queryByRole('button', { name: 'Setup guide' })
     ).not.toBeInTheDocument()
