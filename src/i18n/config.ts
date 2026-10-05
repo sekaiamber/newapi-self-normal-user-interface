@@ -16,6 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import dayjs from 'dayjs'
+import 'dayjs/locale/zh-cn'
 import i18n from 'i18next'
 import LanguageDetector from 'i18next-browser-languagedetector'
 import { initReactI18next } from 'react-i18next'
@@ -52,5 +54,14 @@ i18n
       convertDetectedLanguage,
     },
   })
+
+// [user-ui] 相对时间（dayjs fromNow，如登录会话的"最后活跃"）跟随界面语言；官方未设置 dayjs 语言，中文界面显示英文"a few seconds ago"
+export function toDayjsLocale(language: string | undefined): 'zh-cn' | 'en' {
+  return language?.startsWith('zh') ? 'zh-cn' : 'en'
+}
+dayjs.locale(toDayjsLocale(i18n.resolvedLanguage ?? i18n.language))
+i18n.on('languageChanged', (lng) => {
+  dayjs.locale(toDayjsLocale(lng))
+})
 
 export default i18n

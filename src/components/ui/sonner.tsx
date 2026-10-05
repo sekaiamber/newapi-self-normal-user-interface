@@ -32,6 +32,14 @@ import { useTheme } from '@/context/theme-provider'
 
 const Toaster = (props: ToasterProps) => {
   const { resolvedTheme } = useTheme()
+  // [user-ui] 品牌样式：2px 深色边 + 硬投影（与对话框、菜单一致）；状态色边框加深，2px 下可辨
+  const toastOptions: ToasterProps['toastOptions'] = {
+    ...props.toastOptions,
+    classNames: {
+      toast: 'border-2! shadow-[4px_4px_0_0_var(--shadow-color)]!',
+      ...props.toastOptions?.classNames,
+    },
+  }
 
   return (
     <Sonner
@@ -78,30 +86,30 @@ const Toaster = (props: ToasterProps) => {
         {
           '--normal-bg': 'var(--popover)',
           '--normal-text': 'var(--popover-foreground)',
-          '--normal-border': 'var(--border)',
+          '--normal-border': 'var(--edge)',
           '--success-bg':
             'color-mix(in oklch, var(--success) 16%, var(--popover))',
           '--success-border':
-            'color-mix(in oklch, var(--success) 35%, var(--border))',
+            'color-mix(in oklch, var(--success) 70%, var(--edge))',
           '--success-text': 'var(--success)',
           '--info-bg': 'color-mix(in oklch, var(--info) 16%, var(--popover))',
-          '--info-border':
-            'color-mix(in oklch, var(--info) 35%, var(--border))',
+          '--info-border': 'color-mix(in oklch, var(--info) 70%, var(--edge))',
           '--info-text': 'var(--info)',
           '--warning-bg':
             'color-mix(in oklch, var(--warning) 18%, var(--popover))',
           '--warning-border':
-            'color-mix(in oklch, var(--warning) 38%, var(--border))',
+            'color-mix(in oklch, var(--warning) 70%, var(--edge))',
           '--warning-text': 'var(--warning)',
           '--error-bg':
             'color-mix(in oklch, var(--destructive) 16%, var(--popover))',
           '--error-border':
-            'color-mix(in oklch, var(--destructive) 35%, var(--border))',
+            'color-mix(in oklch, var(--destructive) 70%, var(--edge))',
           '--error-text': 'var(--destructive)',
           '--border-radius': 'var(--radius)',
         } as React.CSSProperties
       }
       {...props}
+      toastOptions={toastOptions}
     />
   )
 }
