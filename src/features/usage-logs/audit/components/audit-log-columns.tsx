@@ -16,6 +16,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+// [user-ui] 审计 2.8 A2：用户名列只在管理员"全部"范围显示（普通用户永远是自己）；
+// 客户端列显示为"Chrome · macOS"，完整 UA 放在悬浮提示和详情里。
+// 请求方法 / 路由 / HTTP 默认隐藏（见 AUDIT_DEFAULT_HIDDEN_COLUMNS），可在"查看"里打开，详情弹窗中始终可见。
 import type { ColumnDef } from '@tanstack/react-table'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -25,11 +28,19 @@ import { StatusBadge } from '@/components/status-badge'
 import dayjs from '@/lib/dayjs'
 
 import type { AuditLog } from '../api'
+import { auditClientLabel } from '../lib/audit-client'
 import { buildAuditDetails } from '../lib/audit-details'
 import { AuditLogDetailsDialog } from './audit-log-details-dialog'
 
+export const AUDIT_DEFAULT_HIDDEN_COLUMNS = {
+  method: false,
+  route: false,
+  status: false,
+} as const
+
 export function useAuditLogColumns(
-  accessOnly?: boolean
+  accessOnly?: boolean,
+  showUsername = true
 ): ColumnDef<AuditLog>[] {
   const { t } = useTranslation()
   return useMemo(() => {
@@ -46,63 +57,63 @@ export function useAuditLogColumns(
         meta: { label: t('Time'), mobileTitle: true },
       },
     ]
+    if (!accessOnly && showUsername) {
+      columns.push({
+        accessorKey: 'username',
+        header: t('Username'),
+        size: 100,
+        meta: { label: t('Username') },
+      })
+    }
     if (!accessOnly) {
-      columns.push(
-        {
-          accessorKey: 'username',
-          header: t('Username'),
-          size: 100,
-          meta: { label: t('Username') },
+      columns.push({
+        id: 'event',
+        header: t('Event'),
+        size: 360,
+        accessorFn: (entry) => {
+          const detail = buildAuditDetails(entry, t)
+          return [detail.summary, detail.operation?.description]
+            .filter(Boolean)
+            .join(' · ')
         },
-        {
-          id: 'event',
-          header: t('Event'),
-          size: 360,
-          accessorFn: (entry) => {
-            const detail = buildAuditDetails(entry, t)
-            return [detail.summary, detail.operation?.description]
-              .filter(Boolean)
-              .join(' · ')
-          },
-          cell: ({ row, getValue }) => {
-            const operation = buildAuditDetails(row.original, t).operation
-            if (!operation) {
-              return (
-                <TruncatedCell className='max-w-64'>
-                  {getValue<string>()}
-                </TruncatedCell>
-              )
-            }
+        cell: ({ row, getValue }) => {
+          const operation = buildAuditDetails(row.original, t).operation
+          if (!operation) {
             return (
-              <div className='min-w-0 space-y-1'>
-                <div className='flex min-w-0 items-baseline gap-1'>
-                  <TruncatedCell
-                    className='min-w-0 font-medium'
-                    tooltipContent={operation.summary}
-                  >
-                    {operation.headline}
-                  </TruncatedCell>
-                  {operation.identifier && (
-                    <span className='shrink-0 whitespace-nowrap'>
-                      {operation.identifier}
-                    </span>
-                  )}
-                </div>
-                {operation.description && (
-                  <TruncatedCell
-                    className='text-muted-foreground'
-                    contentClassName='line-clamp-2 whitespace-normal break-words'
-                    tooltipContent={operation.description}
-                  >
-                    {operation.description}
-                  </TruncatedCell>
+              <TruncatedCell className='max-w-64'>
+                {getValue<string>()}
+              </TruncatedCell>
+            )
+          }
+          return (
+            <div className='min-w-0 space-y-1'>
+              <div className='flex min-w-0 items-baseline gap-1'>
+                <TruncatedCell
+                  className='min-w-0 font-medium'
+                  tooltipContent={operation.summary}
+                >
+                  {operation.headline}
+                </TruncatedCell>
+                {operation.identifier && (
+                  <span className='shrink-0 whitespace-nowrap'>
+                    {operation.identifier}
+                  </span>
                 )}
               </div>
-            )
-          },
-          meta: { label: t('Event') },
-        }
-      )
+              {operation.description && (
+                <TruncatedCell
+                  className='text-muted-foreground'
+                  contentClassName='line-clamp-2 whitespace-normal break-words'
+                  tooltipContent={operation.description}
+                >
+                  {operation.description}
+                </TruncatedCell>
+              )}
+            </div>
+          )
+        },
+        meta: { label: t('Event') },
+      })
     }
     columns.push(
       {
@@ -119,8 +130,11 @@ export function useAuditLogColumns(
         header: t('Client'),
         size: 180,
         cell: ({ row }) => (
-          <TruncatedCell className='max-w-48'>
-            {row.original.user_agent || '—'}
+          <TruncatedCell
+            className='max-w-48'
+            tooltipContent={row.original.user_agent || undefined}
+          >
+            {auditClientLabel(row.original.user_agent) || '—'}
           </TruncatedCell>
         ),
         meta: { label: t('Client'), mobileHidden: true },
@@ -181,5 +195,5 @@ export function useAuditLogColumns(
       }
     )
     return columns
-  }, [accessOnly, t])
+  }, [accessOnly, showUsername, t])
 }

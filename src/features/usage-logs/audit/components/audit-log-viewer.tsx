@@ -28,10 +28,14 @@ import { requireServerSuccess } from '@/lib/server-error-message'
 import { useAuthStore } from '@/stores/auth-store'
 
 import { getAuditLogs, type AuditFilters, type AuditLog } from '../api'
-import { useAuditLogColumns } from './audit-log-columns'
+import {
+  AUDIT_DEFAULT_HIDDEN_COLUMNS,
+  useAuditLogColumns,
+} from './audit-log-columns'
 import { AuditLogFilterBar } from './audit-log-filter-bar'
 
 const EMPTY_LOGS: AuditLog[] = []
+const NO_HIDDEN_COLUMNS = {}
 
 export function AuditLogViewer(props: {
   scope: 'all' | 'self'
@@ -72,7 +76,8 @@ export function AuditLogViewer(props: {
   useEffect(() => {
     if (accessDenied) void onAccessDenied?.()
   }, [accessDenied, onAccessDenied])
-  const columns = useAuditLogColumns(props.accessOnly)
+  // [user-ui] 用户名列只在"全部"范围显示；账户活动页默认隐藏请求方法/路由/HTTP（访问记录抽屉保留，用于查看令牌调用了哪些接口）
+  const columns = useAuditLogColumns(props.accessOnly, props.scope === 'all')
   const { table } = useDataTable({
     columns,
     data:
@@ -97,6 +102,9 @@ export function AuditLogViewer(props: {
         }
       })
     },
+    initialColumnVisibility: props.accessOnly
+      ? NO_HIDDEN_COLUMNS
+      : AUDIT_DEFAULT_HIDDEN_COLUMNS,
     enableRowSelection: false,
     enableSorting: false,
     manualFiltering: true,

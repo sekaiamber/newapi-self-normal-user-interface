@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+// [user-ui] 品牌规范：绑定项方框改为 2px border-edge-soft。
 import { Mail, Shield, Send, Link2, Unlink } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -328,7 +329,7 @@ export function AccountBindings({ profile, onUpdate }: AccountBindingsProps) {
           return (
             <li
               key={binding.id}
-              className='flex min-w-0 items-center justify-between gap-2 rounded-lg border px-2.5 py-2'
+              className='border-edge-soft flex min-w-0 items-center justify-between gap-2 rounded-lg border-2 px-2.5 py-2'
             >
               <div className='flex min-w-0 items-center gap-2'>
                 <div className='bg-muted shrink-0 rounded-md p-1.5'>
@@ -375,7 +376,7 @@ export function AccountBindings({ profile, onUpdate }: AccountBindingsProps) {
           return (
             <li
               key={provider.id}
-              className='flex min-w-0 items-center justify-between gap-2 rounded-lg border px-2.5 py-2'
+              className='border-edge-soft flex min-w-0 items-center justify-between gap-2 rounded-lg border-2 px-2.5 py-2'
             >
               <div className='flex min-w-0 items-center gap-2'>
                 <div className='bg-muted shrink-0 rounded-md p-1.5'>

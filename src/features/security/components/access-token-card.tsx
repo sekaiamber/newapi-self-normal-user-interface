@@ -16,7 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useState } from 'react'
+// [user-ui] 审计 2.12 S1：可选的 hint 说明访问令牌与 API 密钥的区别（由页面传入，带到 API 密钥页的链接）。
+import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { ConfirmDialog } from '@/components/confirm-dialog'
@@ -37,7 +38,7 @@ import dayjs from '@/lib/dayjs'
 import { useAccessToken } from '../hooks/use-access-token'
 import { AccessTokenDialog } from './dialogs/access-token-dialog'
 
-export function AccessTokenCard() {
+export function AccessTokenCard(props: { hint?: ReactNode }) {
   const { t } = useTranslation()
   const access = useAccessToken()
   const [confirmation, setConfirmation] = useState<'rotate' | 'revoke' | null>(
@@ -71,6 +72,11 @@ export function AccessTokenCard() {
             {t('Access records')}
           </Button>
         </div>
+        {props.hint != null && (
+          <p className='text-muted-foreground text-xs leading-relaxed sm:text-sm'>
+            {props.hint}
+          </p>
+        )}
         {access.status.isPending && (
           <p role='status' className='text-muted-foreground text-xs'>
             {t('Loading...')}

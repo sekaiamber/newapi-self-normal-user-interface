@@ -159,7 +159,9 @@ async function renderPage(path = '/security') {
 }
 
 describe('security page migration', () => {
-  it('places account management on the left and verification and privacy on the right', async () => {
+  // [user-ui] 隐私（记录 IP）已移到个人资料页的偏好卡；未绑定邮箱时显示找回密码提示；
+  // 访问令牌卡带"不是 API 密钥"的说明与 API 密钥页链接（审计 2.12 S1/S4/S5）。
+  it('places account management on the left and verification on the right', async () => {
     await renderPage()
     const login = await screen.findByRole('region', {
       name: 'Login & Authentication',
@@ -172,8 +174,10 @@ describe('security page migration', () => {
       'Login & Authentication',
       'Sessions & Access',
       'Account Actions',
-      'Privacy',
     ])
+    expect(
+      within(login).getByText('account.security.noEmail.title')
+    ).toBeVisible()
     expect(
       within(login).getByRole('button', { name: 'Change Password' })
     ).toBeVisible()
@@ -185,9 +189,6 @@ describe('security page migration', () => {
     expect(
       await within(verification).findByText('Two-Factor Authentication')
     ).toBeVisible()
-    expect(
-      within(verification).getByRole('switch', { name: 'Record IP Address' })
-    ).toBeVisible()
     expect(verification).toHaveClass('xl:sticky', 'xl:top-0')
     expect(verification.parentElement).toHaveClass(
       'grid',
@@ -198,11 +199,16 @@ describe('security page migration', () => {
       within(access).getByRole('heading', { name: 'Access Token' })
     ).toBeVisible()
     expect(
+      within(access).getByRole('link', {
+        name: 'account.security.accessToken.goKeys',
+      })
+    ).toHaveAttribute('href', '/keys')
+    expect(
       await within(access).findByText('No active login sessions')
     ).toBeVisible()
     expect(
-      screen.getByRole('switch', { name: 'Record IP Address' })
-    ).toBeVisible()
+      screen.queryByRole('switch', { name: 'Record IP Address' })
+    ).not.toBeInTheDocument()
     expect(
       within(screen.getByRole('region', { name: 'Account Actions' })).getByRole(
         'button',
@@ -256,12 +262,12 @@ describe('security page migration', () => {
       ).toBeVisible()
     )
     expect(
+      await screen.findByRole('switch', { name: 'Record IP Address' })
+    ).toBeVisible()
+    expect(
       screen.queryByRole('button', { name: 'Change Password' })
     ).not.toBeInTheDocument()
     expect(screen.queryByText('Account Bindings')).not.toBeInTheDocument()
-    expect(
-      screen.queryByRole('switch', { name: 'Record IP Address' })
-    ).not.toBeInTheDocument()
     expect(api.get).not.toHaveBeenCalledWith('/api/user/passkey')
     expect(api.get).not.toHaveBeenCalledWith('/api/user/2fa/status')
     expect(api.get).not.toHaveBeenCalledWith('/api/user/sessions')

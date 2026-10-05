@@ -16,6 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+// [user-ui] 审计 2.11 P2/P9：普通用户不显示角色徽章；默认分组不显示，其它分组带"分组"标签；
+// 头像按品牌规范保持圆形；统计格去掉与标题重复的说明文字（P1 未删除统计：概览页没有累计用量与请求数）。
 import { Activity, BarChart3, WalletCards } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
@@ -26,7 +28,7 @@ import { IconBadge, type IconBadgeTone } from '@/components/ui/icon-badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getUserAvatarFallback, getUserAvatarStyle } from '@/lib/avatar'
 import { formatCompactNumber, formatQuota } from '@/lib/format'
-import { getRoleLabel } from '@/lib/roles'
+import { getRoleLabel, ROLE } from '@/lib/roles'
 
 import { getDisplayName } from '../lib'
 import type { UserProfile } from '../types'
@@ -48,7 +50,7 @@ export function ProfileHeader({ profile, loading }: ProfileHeaderProps) {
       <Card data-card-hover='false' className='gap-0 overflow-hidden py-0'>
         <CardContent className='p-4 sm:p-5'>
           <div className='flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left'>
-            <Skeleton className='h-16 w-16 rounded-2xl' />
+            <Skeleton className='size-16 rounded-full' />
             <div className='space-y-3'>
               <div className='flex flex-col items-center gap-2 sm:flex-row sm:justify-start'>
                 <Skeleton className='h-8 w-48' />
@@ -84,31 +86,29 @@ export function ProfileHeader({ profile, loading }: ProfileHeaderProps) {
   const avatarFallback = getUserAvatarFallback(avatarName)
   const avatarFallbackStyle = getUserAvatarStyle(avatarName)
   const roleLabel = getRoleLabel(profile.role)
+  const showRole = profile.role >= ROLE.ADMIN
+  const showGroup = Boolean(profile.group) && profile.group !== 'default'
   const stats: {
     label: string
     value: string
-    description: string
     icon: typeof WalletCards
     tone: IconBadgeTone
   }[] = [
     {
       label: t('Current Balance'),
       value: formatQuota(profile.quota),
-      description: t('Remaining quota'),
       icon: WalletCards,
       tone: 'success',
     },
     {
       label: t('Total Usage'),
       value: formatQuota(profile.used_quota),
-      description: t('Total consumed quota'),
       icon: BarChart3,
       tone: 'info',
     },
     {
       label: t('API Requests'),
       value: formatCompactNumber(profile.request_count),
-      description: t('Total requests made'),
       icon: Activity,
       tone: 'chart-4',
     },
@@ -118,9 +118,9 @@ export function ProfileHeader({ profile, loading }: ProfileHeaderProps) {
     <Card data-card-hover='false' className='gap-0 overflow-hidden py-0'>
       <CardContent className='p-3 sm:p-5'>
         <div className='flex items-center gap-3 text-left sm:gap-4'>
-          <Avatar className='ring-background h-12 w-12 rounded-xl text-sm ring-2 sm:h-16 sm:w-16 sm:rounded-2xl sm:text-lg sm:ring-4'>
+          <Avatar className='ring-background size-12 text-sm ring-2 sm:size-16 sm:text-lg sm:ring-4'>
             <AvatarFallback
-              className='rounded-xl font-semibold text-white sm:rounded-2xl'
+              className='font-semibold'
               style={avatarFallbackStyle}
             >
               {avatarFallback}
@@ -132,14 +132,16 @@ export function ProfileHeader({ profile, loading }: ProfileHeaderProps) {
               <h1 className='truncate text-xl font-semibold tracking-tight sm:text-2xl'>
                 {displayName}
               </h1>
-              <StatusBadge
-                label={roleLabel}
-                variant='neutral'
-                copyable={false}
-              />
+              {showRole && (
+                <StatusBadge
+                  label={roleLabel}
+                  variant='neutral'
+                  copyable={false}
+                />
+              )}
               <StatusBadge
                 label={`${t('User ID')} ${profile.id}`}
-                variant='info'
+                variant='neutral'
                 copyText={String(profile.id)}
               />
             </div>
@@ -152,10 +154,12 @@ export function ProfileHeader({ profile, loading }: ProfileHeaderProps) {
                   <span className='truncate'>{profile.email}</span>
                 </>
               )}
-              {profile.group && (
+              {showGroup && (
                 <>
                   <span>•</span>
-                  <span className='truncate'>{profile.group}</span>
+                  <span className='truncate'>
+                    {t('Group')}: {profile.group}
+                  </span>
                 </>
               )}
             </div>
@@ -177,9 +181,6 @@ export function ProfileHeader({ profile, loading }: ProfileHeaderProps) {
 
               <div className='text-foreground mt-1.5 truncate font-mono text-lg font-bold tracking-tight tabular-nums sm:mt-2 sm:text-2xl'>
                 {item.value}
-              </div>
-              <div className='text-muted-foreground/60 mt-1 hidden text-xs md:block'>
-                {item.description}
               </div>
             </div>
           ))}

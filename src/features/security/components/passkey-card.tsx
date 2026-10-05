@@ -16,6 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+// [user-ui] 审计 2.12 S2/S3：去掉与卡片标题重复的"通行密钥认证"行名；"启用 Passkey"改为次要按钮；
+// 不支持提示的图标颜色改用语义 token。
 import { AlertTriangle, KeyRound, Loader2, ShieldAlert } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -180,7 +182,6 @@ export function PasskeyCard({ loading: pageLoading }: PasskeyCardProps) {
                 </IconBadge>
                 <div className='space-y-1'>
                   <div className='flex flex-wrap items-center gap-2'>
-                    <p className='font-medium'>{t('Passkey Authentication')}</p>
                     <StatusBadge
                       label={enabled ? t('Enabled') : t('Disabled')}
                       variant={enabled ? 'success' : 'neutral'}
@@ -204,6 +205,7 @@ export function PasskeyCard({ loading: pageLoading }: PasskeyCardProps) {
 
               {!enabled && (
                 <Button
+                  variant='outline'
                   className='w-full sm:w-auto xl:w-full 2xl:w-auto'
                   onClick={handleRegister}
                   disabled={!supported || registering || verification.isActive}
@@ -268,7 +270,7 @@ export function PasskeyCard({ loading: pageLoading }: PasskeyCardProps) {
 
             {showUnsupportedNotice && (
               <div className='bg-muted/60 text-muted-foreground flex items-start gap-3 rounded-md p-4 text-sm'>
-                <ShieldAlert className='mt-0.5 h-4 w-4 flex-shrink-0 text-amber-500' />
+                <ShieldAlert className='text-warning mt-0.5 h-4 w-4 flex-shrink-0' />
                 <div>
                   <p className='text-foreground font-medium'>
                     {t('Passkey not supported on this device')}

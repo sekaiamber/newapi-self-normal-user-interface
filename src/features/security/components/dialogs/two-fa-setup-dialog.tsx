@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+// [user-ui] 品牌规范：写死的调色板颜色换成语义 token，手绘 1px 方框改为 2px border-edge-soft。
 import { Loader2 } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useState } from 'react'
@@ -134,6 +135,7 @@ export function TwoFASetupDialog(props: TwoFASetupDialogProps) {
                     'Scan this QR code with your authenticator app (Google Authenticator, Microsoft Authenticator, etc.)'
                   )}
                 </p>
+                {/* [user-ui] 保留白底：二维码在深色主题下也需要白色背景才能被扫描 */}
                 <div className='flex justify-center rounded-lg bg-white p-4'>
                   <QRCodeSVG value={props.setupData.qr_code_data} size={200} />
                 </div>
@@ -168,7 +170,7 @@ export function TwoFASetupDialog(props: TwoFASetupDialogProps) {
                     )}
                   </AlertDescription>
                 </Alert>
-                <div className='rounded-lg border p-4'>
+                <div className='border-edge-soft rounded-lg border-2 p-4'>
                   <div className='grid grid-cols-2 gap-2'>
                     {props.setupData.backup_codes.map((code) => (
                       <div

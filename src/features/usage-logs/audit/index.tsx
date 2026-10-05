@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+// [user-ui] 页面标题按信息架构改为"账户活动"，并加一句说明记录了什么（审计 2.8）。
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -89,7 +90,9 @@ export function AuditLogs() {
   }, [queryClient, userId])
   return (
     <SectionPageLayout fixedContent>
-      <SectionPageLayout.Title>{t('Audit Logs')}</SectionPageLayout.Title>
+      <SectionPageLayout.Title>
+        {t('account.activity.title')}
+      </SectionPageLayout.Title>
       <SectionPageLayout.Actions>
         {canReadAll && !accessRevoked && (
           <Tabs
@@ -107,6 +110,9 @@ export function AuditLogs() {
       </SectionPageLayout.Actions>
       <SectionPageLayout.Content>
         <div className='flex h-full min-h-0 flex-col gap-3'>
+          <p className='text-muted-foreground shrink-0 text-xs sm:text-sm'>
+            {t('account.activity.description')}
+          </p>
           {accessRevoked && (
             <p role='status' className='text-muted-foreground shrink-0 text-xs'>
               {t('Audit access changed. Showing only your records.')}

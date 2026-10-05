@@ -16,170 +16,71 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { LayoutDashboard } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+// [user-ui] 重写：选项按已确认的信息架构分组并使用新名称（无"聊天"开关，钱包开关跟随功能开关），
+// 不再展示区域级开关；读写规则见 ../lib/sidebar-modules.ts（隐藏模块的原值不会被写成 false）。
+// 读取失败时不允许保存，避免用默认值覆盖用户已有设置；有未保存修改时给出提示。
+import { LayoutDashboard, Loader2 } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
-import { IconBadge } from '@/components/ui/icon-badge'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
+import { TitledCard } from '@/components/ui/titled-card'
 import { api } from '@/lib/api'
 import { handleServerError } from '@/lib/handle-server-error'
 import { useAuthStore } from '@/stores/auth-store'
 
-type SidebarModuleConfig = {
-  enabled: boolean
-  [key: string]: boolean
-}
+import { getUserProfile } from '../api'
+import {
+  buildDefaultSidebarConfig,
+  getSidebarToggleGroups,
+  isSidebarToggleOn,
+  parseSidebarModules,
+  resetSidebarToggles,
+  setSidebarToggle,
+  type SidebarModulesConfig,
+} from '../lib/sidebar-modules'
 
-type SidebarModulesConfig = Record<string, SidebarModuleConfig>
-
-type SectionDef = {
-  key: string
-  title: string
-  description: string
-  modules: { key: string; title: string; description: string }[]
-}
+type LoadState = 'loading' | 'ready' | 'error'
 
 export function SidebarModulesCard() {
   const { t } = useTranslation()
-  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [loadState, setLoadState] = useState<LoadState>('loading')
+  const [saved, setSaved] = useState<SidebarModulesConfig>({})
   const [config, setConfig] = useState<SidebarModulesConfig>({})
   const currentUser = useAuthStore((s) => s.auth.user)
   const setUser = useAuthStore((s) => s.auth.setUser)
-
-  const sectionDefs: SectionDef[] = [
-    {
-      key: 'chat',
-      title: t('Chat Area'),
-      description: t('Playground and chat functions'),
-      modules: [
-        {
-          key: 'playground',
-          title: t('Playground'),
-          description: t('AI model testing environment'),
-        },
-        {
-          key: 'chat',
-          title: t('Chat'),
-          description: t('Chat session management'),
-        },
-      ],
-    },
-    {
-      key: 'console',
-      title: t('Console Area'),
-      description: t('Data management and log viewing'),
-      modules: [
-        {
-          key: 'detail',
-          title: t('Dashboard'),
-          description: t('System data statistics'),
-        },
-        {
-          key: 'token',
-          title: t('Token Management'),
-          description: t('API token management'),
-        },
-        {
-          key: 'log',
-          title: t('Usage Logs'),
-          description: t('API usage records'),
-        },
-        {
-          key: 'audit',
-          title: t('Audit Logs'),
-          description: t('Login, security and access records'),
-        },
-        {
-          key: 'midjourney',
-          title: t('Drawing Logs'),
-          description: t('Drawing task records'),
-        },
-        {
-          key: 'task',
-          title: t('Task Logs'),
-          description: t('System task records'),
-        },
-      ],
-    },
-    {
-      key: 'personal',
-      title: t('Personal Center Area'),
-      description: t('User personal functions'),
-      modules: [
-        {
-          key: 'topup',
-          title: t('Wallet Management'),
-          description: t('Balance and top-up management'),
-        },
-        {
-          key: 'personal',
-          title: t('Personal Settings'),
-          description: t('Personal info settings'),
-        },
-        {
-          key: 'security',
-          title: t('Security & Access'),
-          description: t('Manage your security settings and account access'),
-        },
-      ],
-    },
-  ]
+  const groups = useMemo(() => getSidebarToggleGroups(), [])
 
   const loadConfig = useCallback(async () => {
+    setLoadState('loading')
     try {
-      const res = await api.get('/api/user/self')
-      if (res.data.success && res.data.data?.sidebar_modules) {
-        const raw = res.data.data.sidebar_modules
-        const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
-        setConfig(parsed)
-      } else {
-        const defaults: SidebarModulesConfig = {}
-        for (const sec of sectionDefs) {
-          defaults[sec.key] = { enabled: true }
-          for (const mod of sec.modules) defaults[sec.key][mod.key] = true
-        }
-        setConfig(defaults)
-      }
+      const res = await getUserProfile()
+      if (!res.success || !res.data) throw new Error(res.message)
+      const stored = parseSidebarModules(
+        (res.data as { sidebar_modules?: unknown }).sidebar_modules
+      )
+      const initial = stored ?? buildDefaultSidebarConfig()
+      setSaved(initial)
+      setConfig(initial)
+      setLoadState('ready')
     } catch {
-      /* ignore */
+      setLoadState('error')
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
-    loadConfig()
+    void loadConfig()
   }, [loadConfig])
 
-  const toggleSection = (sectionKey: string, val: boolean) => {
-    setConfig((prev) => ({
-      ...prev,
-      [sectionKey]: { ...prev[sectionKey], enabled: val },
-    }))
-  }
-
-  const toggleModule = (
-    sectionKey: string,
-    moduleKey: string,
-    val: boolean
-  ) => {
-    setConfig((prev) => ({
-      ...prev,
-      [sectionKey]: { ...prev[sectionKey], [moduleKey]: val },
-    }))
-  }
+  const dirty = JSON.stringify(config) !== JSON.stringify(saved)
+  const ready = loadState === 'ready'
 
   const handleSave = async () => {
-    setLoading(true)
+    setSaving(true)
     try {
       const serialized = JSON.stringify(config)
       const res = await api.put('/api/user/self', {
@@ -191,6 +92,7 @@ export function SidebarModulesCard() {
         if (currentUser) {
           setUser({ ...currentUser, sidebar_modules: serialized })
         }
+        setSaved(config)
         toast.success(t('Saved successfully'))
       } else {
         handleServerError(res.data, t('Save failed'))
@@ -198,96 +100,113 @@ export function SidebarModulesCard() {
     } catch (error) {
       handleServerError(error, t('Save failed, please retry'))
     } finally {
-      setLoading(false)
+      setSaving(false)
     }
   }
 
-  const handleReset = () => {
-    const defaults: SidebarModulesConfig = {}
-    for (const sec of sectionDefs) {
-      defaults[sec.key] = { enabled: true }
-      for (const mod of sec.modules) defaults[sec.key][mod.key] = true
-    }
-    setConfig(defaults)
-    toast.success(t('Reset to default configuration'))
-  }
-
-  return (
-    <Card data-card-hover='false' className='gap-0 overflow-hidden py-0'>
-      <CardHeader className='border-b p-3 !pb-3 sm:p-5 sm:!pb-5'>
-        <div className='flex items-center gap-3'>
-          <IconBadge tone='info' size='title'>
-            <LayoutDashboard />
-          </IconBadge>
-          <div className='min-w-0'>
-            <CardTitle className='text-lg tracking-tight sm:text-xl'>
-              {t('Sidebar Personal Settings')}
-            </CardTitle>
-            <CardDescription className='text-xs sm:text-sm'>
-              {t('Customize sidebar display content')}
-            </CardDescription>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className='space-y-4 p-3 sm:space-y-5 sm:p-5'>
-        {sectionDefs.map((section) => {
-          const sectionEnabled = config[section.key]?.enabled !== false
-          return (
-            <div
-              key={section.key}
-              className='bg-background/60 rounded-xl border p-3'
+  let body: React.ReactNode
+  if (loadState === 'loading') {
+    body = (
+      <div role='status' aria-label={t('Loading...')} className='space-y-3'>
+        {['a', 'b', 'c'].map((key) => (
+          <Skeleton key={key} className='h-12 w-full' />
+        ))}
+      </div>
+    )
+  } else if (loadState === 'error') {
+    body = (
+      <div role='alert' className='flex flex-wrap items-center gap-3'>
+        <span className='text-destructive text-sm'>
+          {t('account.sidebar.loadFailed')}
+        </span>
+        <Button size='sm' variant='outline' onClick={() => void loadConfig()}>
+          {t('Retry')}
+        </Button>
+      </div>
+    )
+  } else {
+    body = (
+      <div className='space-y-4'>
+        {groups.map((group) => (
+          <section
+            key={group.id}
+            aria-labelledby={`sidebar-group-${group.id}`}
+            className='space-y-1'
+          >
+            <h4
+              id={`sidebar-group-${group.id}`}
+              className='text-muted-foreground text-xs font-semibold tracking-wider uppercase'
             >
-              <div className='flex items-start justify-between gap-3'>
-                <div className='min-w-0'>
-                  <p className='text-sm font-medium'>{section.title}</p>
-                  <p className='text-muted-foreground text-xs'>
-                    {section.description}
-                  </p>
-                </div>
-                <Switch
-                  checked={sectionEnabled}
-                  onCheckedChange={(v) => toggleSection(section.key, v)}
-                />
-              </div>
-              <div className='mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-1'>
-                {section.modules.map((mod) => (
-                  <div
-                    key={mod.key}
-                    className={`flex min-h-16 items-center justify-between rounded-lg border p-3 ${
-                      sectionEnabled ? '' : 'opacity-50'
-                    }`}
+              {t(group.titleKey)}
+            </h4>
+            <ul className='divide-border divide-y'>
+              {group.toggles.map((toggle) => {
+                const id = `sidebar-toggle-${toggle.id}`
+                return (
+                  <li
+                    key={toggle.id}
+                    className='flex items-center justify-between gap-3 py-2.5'
                   >
-                    <div className='mr-2 min-w-0'>
-                      <p className='truncate text-sm font-medium'>
-                        {mod.title}
-                      </p>
-                      <p className='text-muted-foreground truncate text-xs'>
-                        {mod.description}
+                    <div className='min-w-0'>
+                      <label htmlFor={id} className='block text-sm font-medium'>
+                        {t(toggle.labelKey)}
+                      </label>
+                      <p className='text-muted-foreground text-xs'>
+                        {t(toggle.descriptionKey)}
                       </p>
                     </div>
                     <Switch
-                      checked={config[section.key]?.[mod.key] !== false}
-                      onCheckedChange={(v) =>
-                        toggleModule(section.key, mod.key, v)
+                      id={id}
+                      checked={isSidebarToggleOn(config, toggle)}
+                      onCheckedChange={(value) =>
+                        setConfig((prev) =>
+                          setSidebarToggle(prev, toggle, value, groups)
+                        )
                       }
-                      disabled={!sectionEnabled}
+                      disabled={saving}
                     />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )
-        })}
+                  </li>
+                )
+              })}
+            </ul>
+          </section>
+        ))}
+      </div>
+    )
+  }
 
-        <div className='flex flex-col-reverse gap-2 border-t pt-4 sm:flex-row sm:justify-end'>
-          <Button variant='outline' onClick={handleReset}>
+  return (
+    <TitledCard
+      title={t('account.sidebar.title')}
+      description={t('account.sidebar.description')}
+      icon={<LayoutDashboard className='h-4 w-4' />}
+      iconTone='info'
+      disableHoverEffect
+    >
+      {body}
+      <div className='mt-4 flex flex-col gap-2 border-t pt-4 sm:flex-row sm:items-center sm:justify-end'>
+        {dirty && (
+          <p role='status' className='text-muted-foreground text-xs sm:mr-auto'>
+            {t('account.unsavedChanges')}
+          </p>
+        )}
+        <div className='flex flex-col-reverse gap-2 sm:flex-row'>
+          <Button
+            variant='outline'
+            disabled={!ready || saving}
+            onClick={() => {
+              setConfig((prev) => resetSidebarToggles(prev, groups))
+              toast.success(t('Reset to default configuration'))
+            }}
+          >
             {t('Reset to Default')}
           </Button>
-          <Button onClick={handleSave} disabled={loading}>
-            {loading ? t('Saving...') : t('Save Changes')}
+          <Button onClick={handleSave} disabled={!ready || !dirty || saving}>
+            {saving && <Loader2 className='h-4 w-4 animate-spin' />}
+            {saving ? t('Saving...') : t('Save Changes')}
           </Button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </TitledCard>
   )
 }

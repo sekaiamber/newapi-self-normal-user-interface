@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+// [user-ui] 品牌规范：写死的调色板颜色换成语义 token，手绘 1px 方框改为 2px border-edge-soft。
 import { useQuery } from '@tanstack/react-query'
 import {
   CalendarDays,
@@ -231,7 +232,7 @@ export function CheckinCalendarCard({
         <div className='p-6'>
           <div className='flex items-start justify-between gap-4'>
             <div className='flex items-center gap-3'>
-              <Skeleton className='h-10 w-10 rounded-xl' />
+              <Skeleton className='h-10 w-10 rounded-lg' />
               <div className='space-y-2'>
                 <Skeleton className='h-5 w-32' />
                 <Skeleton className='h-3 w-56' />
@@ -304,7 +305,7 @@ export function CheckinCalendarCard({
                     {t('Daily Check-in')}
                   </h3>
                   {checkedToday && (
-                    <div className='inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600 sm:gap-1.5 sm:px-2.5 sm:text-xs dark:text-emerald-400'>
+                    <div className='bg-success/10 text-success inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium sm:gap-1.5 sm:px-2.5 sm:text-xs'>
                       <Sparkles className='h-2.5 w-2.5 sm:h-3 sm:w-3' />
                       {t('Checked in')}
                     </div>
@@ -468,7 +469,7 @@ export function CheckinCalendarCard({
                   {t('You can only check in once per day')}
                 </div>
 
-                <div className='bg-muted/30 text-muted-foreground rounded-lg border p-3 text-xs'>
+                <div className='bg-muted/30 text-muted-foreground border-edge-soft rounded-lg border-2 p-3 text-xs'>
                   <ul className='list-disc space-y-1 pl-5'>
                     <li>
                       {t('Check in daily to receive random quota rewards')}

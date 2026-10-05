@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+// [user-ui] 品牌规范：写死的调色板颜色换成语义 token，手绘 1px 方框改为 2px border-edge-soft。
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -103,7 +104,7 @@ export function TwoFABackupDialog(props: TwoFABackupDialogProps) {
             )}
           </AlertDescription>
         </Alert>
-        <div className='grid grid-cols-2 gap-2 rounded-lg border p-4'>
+        <div className='border-edge-soft grid grid-cols-2 gap-2 rounded-lg border-2 p-4'>
           {backupCodes.map((code) => (
             <div
               key={code}
