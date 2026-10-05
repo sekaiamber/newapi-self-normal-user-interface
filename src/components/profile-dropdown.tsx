@@ -17,10 +17,20 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useNavigate } from '@tanstack/react-router'
-import { User, Wallet, LogOut, ShieldCheck } from 'lucide-react'
+import {
+  Laptop,
+  LogOut,
+  Moon,
+  ShieldCheck,
+  Sun,
+  SunMoon,
+  User,
+  Wallet,
+} from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { LanguageMenuSub } from '@/components/language-switcher'
 import { SignOutDialog } from '@/components/sign-out-dialog'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -28,9 +38,15 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { useTheme } from '@/context/theme-provider'
 import useDialogState from '@/hooks/use-dialog'
 import { useIsSidebarModuleVisible } from '@/hooks/use-sidebar-config'
 import { useUserDisplay } from '@/hooks/use-user-display'
@@ -39,7 +55,63 @@ import { useAuthStore } from '@/stores/auth-store'
 
 const avatarFallbackClassName = 'font-semibold text-white'
 
-export function ProfileDropdown() {
+type ThemeValue = ReturnType<typeof useTheme>['theme']
+
+/**
+ * [user-ui] 外观子菜单（浅色 / 深色 / 跟随系统）。控制台顶栏不再放主题按钮，
+ * 明暗切换收进头像菜单（审计 1.3）；主题设置只开放这三项（WP-DESIGN）。
+ */
+function AppearanceMenuSub() {
+  const { t } = useTranslation()
+  const { theme, setTheme } = useTheme()
+  const options: ReadonlyArray<{
+    value: ThemeValue
+    label: string
+    icon: typeof Sun
+  }> = [
+    { value: 'light', label: t('shell.theme.light'), icon: Sun },
+    { value: 'dark', label: t('shell.theme.dark'), icon: Moon },
+    { value: 'system', label: t('shell.theme.system'), icon: Laptop },
+  ]
+  const currentLabel = options.find((option) => option.value === theme)?.label
+
+  return (
+    <DropdownMenuSub>
+      <DropdownMenuSubTrigger>
+        <SunMoon className='size-4' aria-hidden='true' />
+        {t('shell.menu.appearance')}
+        {currentLabel ? (
+          <span className='text-muted-foreground ms-auto text-xs'>
+            {currentLabel}
+          </span>
+        ) : null}
+      </DropdownMenuSubTrigger>
+      <DropdownMenuSubContent className='min-w-36'>
+        <DropdownMenuRadioGroup
+          value={theme}
+          onValueChange={(value) => setTheme(value as ThemeValue)}
+        >
+          {options.map((option) => (
+            <DropdownMenuRadioItem key={option.value} value={option.value}>
+              <option.icon aria-hidden='true' />
+              {option.label}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuSubContent>
+    </DropdownMenuSub>
+  )
+}
+
+type ProfileDropdownProps = {
+  /**
+   * [user-ui] 是否在菜单里提供"外观"和"语言"子菜单。控制台顶栏（AppHeader）打开它；
+   * 公共页顶栏自带主题与语言按钮，保持默认关闭，避免重复。
+   */
+  showPreferences?: boolean
+}
+
+export function ProfileDropdown(props: ProfileDropdownProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [open, setOpen] = useDialogState()
@@ -58,7 +130,13 @@ export function ProfileDropdown() {
     <>
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger
-          render={<Button variant='ghost' className='relative size-6 p-0' />}
+          render={
+            <Button
+              variant='ghost'
+              className='relative size-6 p-0'
+              aria-label={t('shell.menu.account')}
+            />
+          }
         >
           <Avatar className='size-6'>
             <AvatarFallback
@@ -101,26 +179,35 @@ export function ProfileDropdown() {
 
           <DropdownMenuSeparator />
 
+          {/* [user-ui] 菜单项名称与侧边栏一致（nav.* key，见信息架构） */}
           <DropdownMenuItem onClick={() => navigate({ to: '/profile' })}>
             <User className='size-4' />
-            {t('Profile')}
+            {t('nav.profile')}
           </DropdownMenuItem>
 
           {isSecurityVisible && (
             <DropdownMenuItem onClick={() => navigate({ to: '/security' })}>
               <ShieldCheck className='size-4' />
-              {t('Security & Access')}
+              {t('nav.security')}
             </DropdownMenuItem>
           )}
 
           {isWalletVisible && (
             <DropdownMenuItem onClick={() => navigate({ to: '/wallet' })}>
               <Wallet className='size-4' />
-              {t('Wallet')}
+              {t('nav.wallet')}
             </DropdownMenuItem>
           )}
 
           {/* [user-ui] 系统设置入口属于管理端，已移除 */}
+
+          {props.showPreferences && (
+            <>
+              <DropdownMenuSeparator />
+              <AppearanceMenuSub />
+              <LanguageMenuSub />
+            </>
+          )}
 
           <DropdownMenuSeparator />
 
