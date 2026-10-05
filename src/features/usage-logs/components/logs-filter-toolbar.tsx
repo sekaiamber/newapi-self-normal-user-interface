@@ -51,6 +51,11 @@ interface LogsFilterToolbarProps<TData> {
   hasAdvancedActiveFilters?: boolean
   advancedFilterCount?: number
   searchLoading?: boolean
+  /**
+   * [user-ui] Label the advanced toggle "More filters / Fewer filters" instead
+   * of "Expand / Collapse". Opt-in so the audit log filter bar is unchanged.
+   */
+  moreFiltersLabel?: boolean
   onReset: () => void
   onSearch: () => void
   className?: string
@@ -86,6 +91,10 @@ export function LogsFilterInput(props: ComponentProps<typeof Input>) {
   )
 }
 
+// [user-ui] Brand style (design-system.md): the filter panels are hand-drawn
+// cards, so they use the 2px card edge (`border-2 border-edge-soft`) on a solid
+// card background, and gold text uses `text-primary-ink`. Shared with the
+// audit log filter bar.
 export function LogsFilterToolbar<TData>(props: LogsFilterToolbarProps<TData>) {
   const { t } = useTranslation()
   const [advancedOpen, setAdvancedOpen] = useState(false)
@@ -108,6 +117,14 @@ export function LogsFilterToolbar<TData>(props: LogsFilterToolbarProps<TData>) {
     setMobileFiltersOpen(false)
   }
 
+  // [user-ui] see moreFiltersLabel
+  let advancedToggleLabel = advancedOpen ? t('Collapse') : t('Expand')
+  if (props.moreFiltersLabel) {
+    advancedToggleLabel = advancedOpen
+      ? t('logs.filter.fewer')
+      : t('logs.filter.more')
+  }
+
   const advancedToggle = hasAdvancedFilters ? (
     <Button
       type='button'
@@ -118,10 +135,10 @@ export function LogsFilterToolbar<TData>(props: LogsFilterToolbarProps<TData>) {
         'text-muted-foreground hover:text-foreground gap-1 px-2',
         props.hasAdvancedActiveFilters &&
           !advancedOpen &&
-          'text-primary hover:text-primary'
+          'text-primary-ink hover:text-primary-ink'
       )}
     >
-      {advancedOpen ? t('Collapse') : t('Expand')}
+      {advancedToggleLabel}
       {activeAdvancedCount > 0 && (
         <Badge className='ml-0.5 size-5 justify-center p-0 text-[10px]'>
           {activeAdvancedCount}
@@ -142,7 +159,7 @@ export function LogsFilterToolbar<TData>(props: LogsFilterToolbarProps<TData>) {
         {props.compactMobile ? (
           <div
             className={cn(
-              'bg-card/50 min-w-0 space-y-2.5 rounded-lg border p-2.5',
+              'bg-card border-edge-soft min-w-0 space-y-2.5 rounded-lg border-2 p-2.5',
               props.className
             )}
           >
@@ -186,7 +203,7 @@ export function LogsFilterToolbar<TData>(props: LogsFilterToolbarProps<TData>) {
                     aria-label={t('Filter')}
                     className={cn(
                       'text-muted-foreground min-h-9 gap-1.5 px-2',
-                      activeMobileFilterCount > 0 && 'text-primary'
+                      activeMobileFilterCount > 0 && 'text-primary-ink'
                     )}
                   >
                     {t('Filter')}
@@ -210,7 +227,7 @@ export function LogsFilterToolbar<TData>(props: LogsFilterToolbarProps<TData>) {
         ) : (
           <div
             className={cn(
-              'bg-card/50 rounded-lg border p-2.5',
+              'bg-card border-edge-soft rounded-lg border-2 p-2.5',
               props.className
             )}
           >
@@ -254,7 +271,7 @@ export function LogsFilterToolbar<TData>(props: LogsFilterToolbarProps<TData>) {
                     className={cn(
                       'text-muted-foreground hover:text-foreground gap-1 px-2',
                       activeMobileFilterCount > 0 &&
-                        'text-primary hover:text-primary'
+                        'text-primary-ink hover:text-primary-ink'
                     )}
                   >
                     {t('Filter')}
@@ -322,7 +339,7 @@ export function LogsFilterToolbar<TData>(props: LogsFilterToolbarProps<TData>) {
   return (
     <div
       className={cn(
-        'bg-card/50 rounded-lg border p-2.5 sm:p-3',
+        'bg-card border-edge-soft rounded-lg border-2 p-2.5 sm:p-3',
         props.className
       )}
     >

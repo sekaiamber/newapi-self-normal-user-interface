@@ -21,9 +21,13 @@ import { getRouteApi } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { formatLogQuota } from '@/lib/format'
 import { requireServerSuccess } from '@/lib/server-error-message'
-import { cn } from '@/lib/utils'
 
 import { getLogStats, getUserLogStats } from '../api'
 import { DEFAULT_LOG_STATS } from '../constants'
@@ -32,19 +36,28 @@ import { useLogsViewScope, useUsageLogsContext } from './usage-logs-provider'
 
 const route = getRouteApi('/_authenticated/usage-logs/$section')
 
-function StatBadge(props: {
-  label: string
-  value: string | number
-  accent: string
-}) {
+// [user-ui] Plain-language statistics (audit 2.6 L5): "用量 / RPM / TPM"
+// became "spend in this range" and "last minute: n requests · m tokens", each
+// with an explanation (meaning per guide/feature-guide/user/log.md "Page
+// Statistics"). The colored accent bars (palette classes) were dropped.
+function StatItem(props: { label: string; value: string; hint: string }) {
   return (
-    <span className='border-border/60 bg-muted/25 inline-flex h-7 items-center gap-2 rounded-md border px-2.5 text-xs shadow-xs'>
-      <span className={cn('h-3.5 w-0.5 rounded-full', props.accent)} />
-      <span className='text-muted-foreground'>{props.label}</span>
-      <span className='text-foreground/85 font-mono font-semibold tabular-nums'>
-        {props.value}
-      </span>
-    </span>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <span
+            tabIndex={0}
+            className='focus-visible:ring-ring inline-flex h-7 cursor-help items-baseline gap-1.5 rounded-sm text-xs outline-none focus-visible:ring-2'
+          />
+        }
+      >
+        <span className='text-muted-foreground'>{props.label}</span>
+        <span className='text-foreground font-mono font-semibold tabular-nums'>
+          {props.value}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent className='max-w-64'>{props.hint}</TooltipContent>
+    </Tooltip>
   )
 }
 
@@ -78,30 +91,27 @@ export function CommonLogsStats() {
 
   if (isLoading) {
     return (
-      <div className='flex items-center gap-2'>
-        <Skeleton className='h-7 w-[150px] rounded-md' />
-        <Skeleton className='h-7 w-[100px] rounded-md' />
-        <Skeleton className='h-7 w-[120px] rounded-md' />
+      <div className='flex items-center gap-4'>
+        <Skeleton className='h-5 w-[120px] rounded-sm' />
+        <Skeleton className='h-5 w-[180px] rounded-sm' />
       </div>
     )
   }
 
   return (
-    <div className='flex flex-wrap items-center gap-2'>
-      <StatBadge
-        label={t('Usage')}
+    <div className='flex flex-wrap items-center gap-x-4 gap-y-1'>
+      <StatItem
+        label={t('logs.stats.spend')}
         value={sensitiveVisible ? formatLogQuota(stats?.quota || 0) : '••••'}
-        accent='bg-sky-500/70'
+        hint={t('logs.stats.spendHint')}
       />
-      <StatBadge
-        label={t('RPM')}
-        value={stats?.rpm || 0}
-        accent='bg-rose-500/65'
-      />
-      <StatBadge
-        label={t('TPM')}
-        value={stats?.tpm || 0}
-        accent='bg-slate-400/70'
+      <StatItem
+        label={t('logs.stats.lastMinute')}
+        value={t('logs.stats.lastMinuteValue', {
+          requests: stats?.rpm || 0,
+          tokens: stats?.tpm || 0,
+        })}
+        hint={t('logs.stats.lastMinuteHint')}
       />
     </div>
   )

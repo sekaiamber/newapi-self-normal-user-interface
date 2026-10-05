@@ -18,10 +18,12 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { flexRender, type Cell, type Table } from '@tanstack/react-table'
 import { Database } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -36,11 +38,11 @@ import { TASK_MOBILE_SUMMARY_FIELDS } from '../lib/task-mobile-layout'
 import type { LogCategory } from '../types'
 import { CommonLogMobileCard } from './common-log-mobile-card'
 
+// [user-ui] Semantic tokens instead of rose/blue palette classes; common-log
+// cards are hand-drawn cards, so they get the 2px card edge (design-system.md).
 const logTypeRowTint: Record<number, string> = {
-  [LOG_TYPE_ENUM.ERROR]:
-    'bg-rose-50/40 dark:bg-rose-950/20 border-rose-200/50 dark:border-rose-900/30',
-  [LOG_TYPE_ENUM.REFUND]:
-    'bg-blue-50/30 dark:bg-blue-950/15 border-blue-200/50 dark:border-blue-900/30',
+  [LOG_TYPE_ENUM.ERROR]: 'bg-destructive/5 border-destructive/40',
+  [LOG_TYPE_ENUM.REFUND]: 'bg-info/5 border-info/40',
 }
 
 interface UsageLogsMobileListProps<TData> {
@@ -48,6 +50,8 @@ interface UsageLogsMobileListProps<TData> {
   isLoading?: boolean
   emptyTitle?: string
   emptyDescription?: string
+  /** [user-ui] Buttons under the empty message (see usage-logs-empty.tsx). */
+  emptyAction?: ReactNode
   logCategory: LogCategory
 }
 
@@ -61,7 +65,7 @@ function UsageLogsMobileSkeleton(props: { separate: boolean }) {
       className={
         props.separate
           ? 'min-w-0 space-y-3'
-          : 'border-border/50 bg-card overflow-hidden rounded-lg border'
+          : 'border-edge-soft bg-card overflow-hidden rounded-lg border-2'
       }
     >
       {[1, 2, 3].map((i) => (
@@ -69,7 +73,7 @@ function UsageLogsMobileSkeleton(props: { separate: boolean }) {
           key={i}
           className={
             props.separate
-              ? 'border-border/60 bg-card space-y-3 rounded-xl border p-3.5'
+              ? 'border-edge-soft bg-card space-y-3 rounded-lg border-2 p-3.5'
               : 'border-border/40 space-y-2.5 border-b p-3 last:border-b-0'
           }
         >
@@ -241,6 +245,7 @@ export function UsageLogsMobileList<TData>({
   isLoading = false,
   emptyTitle,
   emptyDescription,
+  emptyAction,
   logCategory,
 }: UsageLogsMobileListProps<TData>) {
   const { t } = useTranslation()
@@ -258,7 +263,7 @@ export function UsageLogsMobileList<TData>({
 
   if (!rows || rows.length === 0) {
     return (
-      <div className='rounded-lg border p-6'>
+      <div className='border-edge-soft rounded-lg border-2 p-6'>
         <Empty className='border-none p-0'>
           <EmptyHeader>
             <EmptyMedia variant='icon'>
@@ -267,6 +272,7 @@ export function UsageLogsMobileList<TData>({
             <EmptyTitle>{resolvedEmptyTitle}</EmptyTitle>
             <EmptyDescription>{resolvedEmptyDescription}</EmptyDescription>
           </EmptyHeader>
+          {emptyAction != null && <EmptyContent>{emptyAction}</EmptyContent>}
         </Empty>
       </div>
     )
@@ -277,7 +283,7 @@ export function UsageLogsMobileList<TData>({
       className={cn(
         logCategory === 'common'
           ? 'min-w-0 space-y-3'
-          : 'border-border/50 bg-card overflow-hidden rounded-lg border'
+          : 'border-edge-soft bg-card overflow-hidden rounded-lg border-2'
       )}
     >
       {rows.map((row) => {
@@ -295,7 +301,7 @@ export function UsageLogsMobileList<TData>({
             key={row.id}
             className={cn(
               logCategory === 'common'
-                ? 'border-border/60 bg-card min-w-0 rounded-xl border p-3.5'
+                ? 'border-edge-soft bg-card min-w-0 rounded-lg border-2 p-3.5'
                 : 'border-border/40 border-b border-l-2 border-l-transparent p-3 transition-colors last:border-b-0',
               tintClass
             )}

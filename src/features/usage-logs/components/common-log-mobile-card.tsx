@@ -40,7 +40,7 @@ import {
 } from '../lib/utils'
 import { ModelBadge } from './model-badge'
 import { StreamTpsCell, TimingMetricsCell } from './timing-metrics-cell'
-import { useUsageLogsContext } from './usage-logs-provider'
+import { useLogsViewScope, useUsageLogsContext } from './usage-logs-provider'
 
 type FieldName =
   | 'model'
@@ -64,6 +64,9 @@ export function CommonLogMobileCard<TData>(props: {
 }) {
   const { t } = useTranslation()
   const context = useUsageLogsContext()
+  // [user-ui] Group and price ratio are admin billing details (audit 2.6 L4);
+  // users find both in the details dialog.
+  const { isAdminView } = useLogsViewScope()
   const [selectedField, setSelectedField] = useState<FieldName | null>(null)
   const log = props.log
   const other = parseLogOther(log.other)
@@ -105,7 +108,8 @@ export function CommonLogMobileCard<TData>(props: {
       sensitive: true,
     },
     token: {
-      label: t('Token'),
+      // [user-ui] the API key name (was "令牌")
+      label: t('logs.col.key'),
       value: log.token_name,
       visible: displayable && props.cells.has('token_name') && !!log.token_name,
       sensitive: true,
@@ -113,7 +117,8 @@ export function CommonLogMobileCard<TData>(props: {
     group: {
       label: t('Group'),
       value: group,
-      visible: displayable && props.cells.has('token_name') && !!group,
+      visible:
+        isAdminView && displayable && props.cells.has('token_name') && !!group,
       sensitive: true,
     },
   }
@@ -276,7 +281,8 @@ export function CommonLogMobileCard<TData>(props: {
               </div>
             )
           })}
-          {groupRatio != null &&
+          {isAdminView &&
+            groupRatio != null &&
             groupRatio !== 1 &&
             Number.isFinite(groupRatio) &&
             props.cells.has('token_name') && (
@@ -302,16 +308,21 @@ export function CommonLogMobileCard<TData>(props: {
           </span>
           {cacheRead > 0 && (
             <span>
-              {t('Cache')} ↓ {cacheRead.toLocaleString()}
+              {t('logs.tokens.cacheRead', {
+                value: cacheRead.toLocaleString(),
+              })}
             </span>
           )}
           {cacheWrite > 0 && (
             <span>
-              {t('Cache')} ↑ {cacheWrite.toLocaleString()}
+              {t('logs.tokens.cacheWrite', {
+                value: cacheWrite.toLocaleString(),
+              })}
             </span>
           )}
         </div>
       )}
+      {/* [user-ui] brand: gold icon via text-primary-ink; the sheet below uses the 4px radius */}
       {contentCell && (
         <div className='relative min-w-0 border-t pt-2 [&_button]:min-h-8 [&_button]:w-full [&_button]:max-w-full [&_button]:pr-5 [&_button]:text-sm [&_button>span]:line-clamp-2 [&_button>span]:[overflow-wrap:anywhere] [&_button>span]:whitespace-normal'>
           {flexRender(
@@ -320,7 +331,7 @@ export function CommonLogMobileCard<TData>(props: {
           )}
           <ChevronRight
             aria-hidden='true'
-            className='text-primary pointer-events-none absolute top-4 right-0 size-4'
+            className='text-primary-ink pointer-events-none absolute top-4 right-0 size-4'
           />
         </div>
       )}
@@ -330,7 +341,7 @@ export function CommonLogMobileCard<TData>(props: {
           if (!open) setSelectedField(null)
         }}
         title={activeField?.label ?? t('Details')}
-        contentClassName='max-sm:top-auto max-sm:bottom-0 max-sm:max-h-[85dvh] max-sm:max-w-full max-sm:translate-y-0 max-sm:rounded-b-none max-sm:rounded-t-2xl max-sm:pb-[max(1rem,env(safe-area-inset-bottom))] [&_[data-slot=dialog-close]]:size-11'
+        contentClassName='max-sm:top-auto max-sm:bottom-0 max-sm:max-h-[85dvh] max-sm:max-w-full max-sm:translate-y-0 max-sm:rounded-b-none max-sm:rounded-t-lg max-sm:pb-[max(1rem,env(safe-area-inset-bottom))] [&_[data-slot=dialog-close]]:size-11'
         footer={
           activeField && (
             <CopyButton

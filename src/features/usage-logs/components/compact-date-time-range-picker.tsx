@@ -30,11 +30,25 @@ import {
 import dayjs from '@/lib/dayjs'
 import { cn } from '@/lib/utils'
 
+import {
+  getPresetRange,
+  matchRangePreset,
+  RANGE_PRESETS,
+  type RangePresetKind,
+} from '../lib/time-range-presets'
+
 interface CompactDateTimeRangePickerProps {
   start?: Date
   end?: Date
   onChange: (range: { start?: Date; end?: Date }) => void
   className?: string
+  /**
+   * [user-ui] When the range equals a preset (e.g. the last 7 days), show the
+   * preset name ("Last 7 days") on the trigger instead of two timestamps; the
+   * exact range stays in the accessible name and in the popover. Opt-in so
+   * other users of this picker (audit log) keep their current label.
+   */
+  namePresets?: boolean
 }
 
 function toInputValue(date?: Date): string {
@@ -52,6 +66,7 @@ export function CompactDateTimeRangePicker({
   end,
   onChange,
   className,
+  namePresets = false,
 }: CompactDateTimeRangePickerProps) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
@@ -77,6 +92,14 @@ export function CompactDateTimeRangePicker({
     return label
   }, [start, end, label])
 
+  // [user-ui] Preset name for the trigger (opt-in, see `namePresets`).
+  const presetName = useMemo(() => {
+    if (!namePresets) return undefined
+    const kind = matchRangePreset(start, end)
+    const preset = RANGE_PRESETS.find((item) => item.kind === kind)
+    return preset ? t(preset.nameKey) : undefined
+  }, [end, namePresets, start, t])
+
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
       setDraftStart(toInputValue(start))
@@ -93,31 +116,8 @@ export function CompactDateTimeRangePicker({
     setOpen(false)
   }
 
-  const applyPreset = (kind: 'today' | '7d' | 'week' | '30d' | 'month') => {
-    const now = dayjs()
-    const presets = {
-      today: {
-        start: now.startOf('day').toDate(),
-        end: now.endOf('day').toDate(),
-      },
-      '7d': {
-        start: now.subtract(6, 'day').startOf('day').toDate(),
-        end: now.endOf('day').toDate(),
-      },
-      week: {
-        start: now.startOf('week').toDate(),
-        end: now.endOf('week').toDate(),
-      },
-      '30d': {
-        start: now.subtract(29, 'day').startOf('day').toDate(),
-        end: now.endOf('day').toDate(),
-      },
-      month: {
-        start: now.startOf('month').toDate(),
-        end: now.endOf('month').toDate(),
-      },
-    }
-    const range = presets[kind]
+  const applyPreset = (kind: RangePresetKind) => {
+    const range = getPresetRange(kind)
     setDraftStart(toInputValue(range.start))
     setDraftEnd(toInputValue(range.end))
     onChange(range)
@@ -131,7 +131,8 @@ export function CompactDateTimeRangePicker({
           <Button
             type='button'
             variant='outline'
-            aria-label={label}
+            aria-label={presetName ? `${presetName} (${label})` : label}
+            title={presetName ? label : undefined}
             className={cn(
               'w-full justify-start gap-2 px-2.5 text-sm leading-5 font-normal tabular-nums',
               !start && !end && 'text-muted-foreground',
@@ -141,10 +142,16 @@ export function CompactDateTimeRangePicker({
         }
       >
         <CalendarDays className='text-muted-foreground size-4 shrink-0' />
-        <span className='hidden truncate sm:block'>{label}</span>
-        <span className='min-w-0 [overflow-wrap:anywhere] whitespace-normal sm:hidden'>
-          {mobileLabel}
-        </span>
+        {presetName ? (
+          <span className='min-w-0 truncate'>{presetName}</span>
+        ) : (
+          <>
+            <span className='hidden truncate sm:block'>{label}</span>
+            <span className='min-w-0 [overflow-wrap:anywhere] whitespace-normal sm:hidden'>
+              {mobileLabel}
+            </span>
+          </>
+        )}
       </PopoverTrigger>
       <PopoverContent
         align='start'
@@ -182,51 +189,19 @@ export function CompactDateTimeRangePicker({
           </div>
 
           <div className='flex flex-wrap gap-1.5'>
-            <Button
-              type='button'
-              variant='secondary'
-              size='sm'
-              className='h-7 flex-1 px-2 text-xs'
-              onClick={() => applyPreset('today')}
-            >
-              {t('Today')}
-            </Button>
-            <Button
-              type='button'
-              variant='secondary'
-              size='sm'
-              className='h-7 flex-1 px-2 text-xs'
-              onClick={() => applyPreset('7d')}
-            >
-              {t('7 Days')}
-            </Button>
-            <Button
-              type='button'
-              variant='secondary'
-              size='sm'
-              className='h-7 flex-1 px-2 text-xs'
-              onClick={() => applyPreset('week')}
-            >
-              {t('This week')}
-            </Button>
-            <Button
-              type='button'
-              variant='secondary'
-              size='sm'
-              className='h-7 flex-1 px-2 text-xs'
-              onClick={() => applyPreset('30d')}
-            >
-              {t('30 Days')}
-            </Button>
-            <Button
-              type='button'
-              variant='secondary'
-              size='sm'
-              className='h-7 flex-1 px-2 text-xs'
-              onClick={() => applyPreset('month')}
-            >
-              {t('Current month')}
-            </Button>
+            {/* [user-ui] preset buttons come from lib/time-range-presets (same ranges as upstream) */}
+            {RANGE_PRESETS.map((preset) => (
+              <Button
+                key={preset.kind}
+                type='button'
+                variant='secondary'
+                size='sm'
+                className='h-7 flex-1 px-2 text-xs'
+                onClick={() => applyPreset(preset.kind)}
+              >
+                {t(preset.buttonKey)}
+              </Button>
+            ))}
           </div>
 
           <div className='flex justify-end'>

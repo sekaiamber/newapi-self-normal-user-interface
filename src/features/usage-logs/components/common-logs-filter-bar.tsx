@@ -19,13 +19,12 @@ For commercial licensing, please contact support@quantumnous.com
 import { useQueryClient, useIsFetching, useQuery } from '@tanstack/react-query'
 import { useNavigate, getRouteApi } from '@tanstack/react-router'
 import type { Table } from '@tanstack/react-table'
-import { Eye, EyeOff } from 'lucide-react'
 import { useState, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Combobox } from '@/components/ui/combobox'
+import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -34,13 +33,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { Switch } from '@/components/ui/switch'
 import { getGroups } from '@/features/users/api'
-import { useMediaQuery } from '@/hooks'
 import { getUserGroups } from '@/lib/api'
 import { requireServerSuccess } from '@/lib/server-error-message'
 
@@ -62,6 +56,25 @@ const route = getRouteApi('/_authenticated/usage-logs/$section')
 type LogTypeValue = (typeof LOG_TYPE_FILTERS)[number]['value']
 const logTypeValueSet = new Set<string>(
   LOG_TYPE_FILTERS.map((type) => type.value)
+)
+
+// [user-ui] Type options ordered by how often a user needs them (audit 2.6
+// L8): all, consume, error, refund, top-up, system; the retired "manage" and
+// "login" types come last and only appear while one of them is selected.
+const LOG_TYPE_OPTION_ORDER: readonly string[] = [
+  LOG_TYPE_ALL_VALUE,
+  '2',
+  '5',
+  '6',
+  '1',
+  '4',
+  '3',
+  '7',
+]
+const ORDERED_LOG_TYPE_FILTERS = [...LOG_TYPE_FILTERS].sort(
+  (a, b) =>
+    LOG_TYPE_OPTION_ORDER.indexOf(a.value) -
+    LOG_TYPE_OPTION_ORDER.indexOf(b.value)
 )
 
 type CommonLogDraft = {
@@ -119,7 +132,6 @@ export function CommonLogsFilterBar<TData>(
   props: CommonLogsFilterBarProps<TData>
 ) {
   const { t } = useTranslation()
-  const isMobile = useMediaQuery('(max-width: 640px)')
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const searchParams = route.useSearch()
@@ -261,8 +273,18 @@ export function CommonLogsFilterBar<TData>(
     [handleApply]
   )
 
+  // [user-ui] The group filter only means something when the user can pick
+  // between groups (audit 2.6 L9). It stays visible while a group filter is
+  // set or applied (e.g. from a link) so it can still be edited and cleared.
+  const showGroupFilter =
+    isAdmin ||
+    groupOptions.length > 1 ||
+    !!filters.group ||
+    !!searchParams.group
+
   const hasExpandedFilters =
     !!filters.token ||
+    !!filters.group ||
     !!filters.username ||
     !!filters.channel ||
     !!filters.requestId ||
@@ -270,10 +292,11 @@ export function CommonLogsFilterBar<TData>(
 
   const hasTypeFilter = logType !== LOG_TYPE_ALL_VALUE
   const hasAdditionalFilters =
-    !!filters.model || !!filters.group || hasTypeFilter || hasExpandedFilters
+    !!filters.model || hasTypeFilter || hasExpandedFilters
 
   const expandedFilterCount = [
     filters.token,
+    filters.group,
     isAdmin ? filters.username : undefined,
     isAdmin ? filters.channel : undefined,
     filters.requestId,
@@ -282,53 +305,61 @@ export function CommonLogsFilterBar<TData>(
   const sensitiveInputClass = sensitiveVisible
     ? undefined
     : '[-webkit-text-security:disc]'
+  const appliedLogType = searchState.logType
   const logTypeItems = useMemo(
     () =>
-      LOG_TYPE_FILTERS.map((type) => ({
+      ORDERED_LOG_TYPE_FILTERS.filter(
+        (type) =>
+          !type.deprecated ||
+          type.value === logType ||
+          type.value === appliedLogType
+      ).map((type) => ({
         value: type.value,
         label: t(type.label),
         deprecated: type.deprecated,
       })),
-    [t]
+    [appliedLogType, logType, t]
   )
   const selectedLogType = logTypeItems.find((type) => type.value === logType)
-  const deprecatedTypeDescription = t(
-    'Only used to find historical logs. New records are available in Audit Logs.'
-  )
+  // [user-ui] Audit logs are called "账户活动 / Account activity" here.
+  const deprecatedTypeDescription = t('logs.type.deprecatedHint')
 
   const statsBar = <CommonLogsStats />
+  // [user-ui] The eye icon (no text) became a labelled switch inside "More
+  // filters": it masks key names and groups, e.g. before taking a screenshot
+  // (audit 2.6 L6).
   const sensitiveToggle = (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Button
-            variant='ghost'
-            size='icon'
-            onClick={() => setSensitiveVisible(!sensitiveVisible)}
-            aria-label={sensitiveVisible ? t('Hide') : t('Show')}
-            className='text-muted-foreground hover:text-foreground size-7 max-sm:size-11'
-          />
-        }
-      >
-        {sensitiveVisible ? <Eye /> : <EyeOff />}
-      </TooltipTrigger>
-      <TooltipContent>
-        {sensitiveVisible ? t('Hide') : t('Show')}
-      </TooltipContent>
-    </Tooltip>
+    <LogsFilterField className='flex min-h-8 items-center'>
+      <div className='flex items-center gap-2'>
+        <Switch
+          id='usage-logs-hide-sensitive'
+          size='sm'
+          checked={!sensitiveVisible}
+          onCheckedChange={(checked) => setSensitiveVisible(!checked)}
+        />
+        <Label
+          htmlFor='usage-logs-hide-sensitive'
+          className='text-sm font-normal'
+        >
+          {t('logs.filter.hideSensitive')}
+        </Label>
+      </div>
+    </LogsFilterField>
   )
 
   const dateRangeFilter = (
     <LogsFilterField wide>
       <CompactDateTimeRangePicker
+        namePresets
         start={filters.startTime}
         end={filters.endTime}
         onChange={({ start, end }) => {
+          // [user-ui] The picker has its own Confirm/preset buttons, so a new
+          // range is applied right away on every screen size (upstream only
+          // did this on mobile; desktop also needed "Search").
           handleChange('startTime', start)
           handleChange('endTime', end)
-          if (isMobile) {
-            handleApply({ ...filters, startTime: start, endTime: end })
-          }
+          handleApply({ ...filters, startTime: start, endTime: end })
         }}
       />
     </LogsFilterField>
@@ -336,6 +367,7 @@ export function CommonLogsFilterBar<TData>(
   const modelFilter = (
     <LogsFilterField>
       <LogsFilterInput
+        aria-label={t('Model Name')}
         placeholder={t('Model Name')}
         value={filters.model || ''}
         onChange={(e) => handleChange('model', e.target.value)}
@@ -343,7 +375,7 @@ export function CommonLogsFilterBar<TData>(
       />
     </LogsFilterField>
   )
-  const groupFilter = (
+  const groupFilter = showGroupFilter ? (
     <LogsFilterField className={sensitiveInputClass}>
       <Combobox
         options={groupOptions}
@@ -357,7 +389,7 @@ export function CommonLogsFilterBar<TData>(
         onKeyDown={handleKeyDown}
       />
     </LogsFilterField>
-  )
+  ) : null
   const typeFilter = (
     <LogsFilterField>
       <Select
@@ -405,7 +437,7 @@ export function CommonLogsFilterBar<TData>(
           className='max-w-[calc(100vw-2rem)] min-w-52'
         >
           <SelectGroup>
-            {LOG_TYPE_FILTERS.map((type) => (
+            {logTypeItems.map((type) => (
               <SelectItem
                 key={type.value}
                 value={type.value}
@@ -414,7 +446,7 @@ export function CommonLogsFilterBar<TData>(
                   type.deprecated ? deprecatedTypeDescription : undefined
                 }
               >
-                {t(type.label)}
+                {type.label}
                 {type.deprecated && (
                   <Badge
                     variant='secondary'
@@ -435,13 +467,15 @@ export function CommonLogsFilterBar<TData>(
     <>
       <LogsFilterField>
         <LogsFilterInput
-          placeholder={t('Token Name')}
+          aria-label={t('logs.filter.keyName')}
+          placeholder={t('logs.filter.keyName')}
           className={sensitiveInputClass}
           value={filters.token || ''}
           onChange={(e) => handleChange('token', e.target.value)}
           onKeyDown={handleKeyDown}
         />
       </LogsFilterField>
+      {groupFilter}
       {isAdmin && (
         <LogsFilterField>
           <LogsFilterInput
@@ -465,6 +499,7 @@ export function CommonLogsFilterBar<TData>(
       )}
       <LogsFilterField>
         <LogsFilterInput
+          aria-label={t('Request ID')}
           placeholder={t('Request ID')}
           value={filters.requestId || ''}
           onChange={(e) => handleChange('requestId', e.target.value)}
@@ -473,26 +508,29 @@ export function CommonLogsFilterBar<TData>(
       </LogsFilterField>
       <LogsFilterField>
         <LogsFilterInput
+          aria-label={t('Upstream Request ID')}
           placeholder={t('Upstream Request ID')}
           value={filters.upstreamRequestId || ''}
           onChange={(e) => handleChange('upstreamRequestId', e.target.value)}
           onKeyDown={handleKeyDown}
         />
       </LogsFilterField>
+      {sensitiveToggle}
     </>
   )
 
+  // [user-ui] First row: time + model + type; everything else is under
+  // "More filters" (audit 2.6 L6).
   return (
     <LogsFilterToolbar
       table={props.table}
       compactMobile
+      moreFiltersLabel
       stats={statsBar}
-      actionStart={sensitiveToggle}
       primaryFilters={
         <>
           {dateRangeFilter}
           {modelFilter}
-          {groupFilter}
           {typeFilter}
         </>
       }
@@ -501,13 +539,12 @@ export function CommonLogsFilterBar<TData>(
       mobileFilters={
         <>
           {modelFilter}
-          {groupFilter}
           {typeFilter}
           {advancedFilters}
         </>
       }
       mobileFilterCount={
-        [filters.model, filters.group, hasTypeFilter].filter(Boolean).length +
+        [filters.model, hasTypeFilter].filter(Boolean).length +
         expandedFilterCount
       }
       hasAdvancedActiveFilters={hasExpandedFilters}
