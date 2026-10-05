@@ -16,7 +16,13 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Crown, CalendarClock, Package } from 'lucide-react'
+// [user-ui] 订阅购买弹窗重绘：
+// - 付款方式改为单选列表（余额、Stripe、Creem、Waffo Pancake、各易支付方式），底部只有一个主按钮"确认支付"；
+//   官方是余额区一个按钮 + 每个网关各一个按钮 + 易支付下拉框，没有明确的主操作；
+// - 网关名称优先用后台"充值方式"里配置的名称（providerNames），易支付方式本来就用配置名称；
+// - 明细框改 2px 边，金额改等宽数字，价格不用金色文字；
+// - 各网关的下单请求与跳转方式（新窗口 / 当前页 / 表单提交）与官方完全一致。
+import { CalendarClock, Check, Crown, Loader2, Package } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -25,11 +31,10 @@ import { Dialog } from '@/components/dialog'
 import { GroupBadge } from '@/components/group-badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Combobox } from '@/components/ui/combobox'
-import { Separator } from '@/components/ui/separator'
 import { useSystemConfig } from '@/hooks/use-system-config'
 import { formatQuota } from '@/lib/format'
 import { handleServerError } from '@/lib/handle-server-error'
+import { cn } from '@/lib/utils'
 import { DEFAULT_CURRENCY_CONFIG } from '@/stores/system-config-store'
 
 import {
@@ -56,25 +61,31 @@ interface Props {
   enableWaffoPancake?: boolean
   enableOnlineTopUp?: boolean
   epayMethods?: PaymentMethod[]
+  /** [user-ui] 后台配置的网关显示名称（type → name），如 stripe、waffo_pancake */
+  providerNames?: Record<string, string>
   purchaseLimit?: number
   purchaseCount?: number
   userQuota?: number
   onPurchaseSuccess?: () => void | Promise<void>
 }
 
+type PayOption = {
+  key: string
+  label: string
+  detail?: string
+  disabled?: boolean
+}
+
 export function SubscriptionPurchaseDialog(props: Props) {
   const { t } = useTranslation()
   const { currency } = useSystemConfig()
   const [paying, setPaying] = useState(false)
-  const [selectedEpayMethod, setSelectedEpayMethod] = useState('')
+  // [user-ui] 选中的付款方式：'balance' | 'stripe' | 'creem' | 'waffo_pancake' | 'epay:<type>'
+  const [selectedKey, setSelectedKey] = useState<string | null>(null)
 
   useEffect(() => {
-    if (props.open && props.epayMethods && props.epayMethods.length > 0) {
-      setSelectedEpayMethod(props.epayMethods[0].type)
-    } else if (!props.open) {
-      setSelectedEpayMethod('')
-    }
-  }, [props.open, props.epayMethods])
+    if (!props.open) setSelectedKey(null)
+  }, [props.open])
 
   const plan = props.plan?.plan
   if (!plan) return null
@@ -85,7 +96,6 @@ export function SubscriptionPurchaseDialog(props: Props) {
     props.enableWaffoPancake && !!plan.waffo_pancake_product_id
   const hasEpay =
     props.enableOnlineTopUp && (props.epayMethods || []).length > 0
-  const hasAnyPayment = hasStripe || hasCreem || hasWaffoPancake || hasEpay
   const totalAmount = Number(plan.total_amount || 0)
   const price = Number(plan.price_amount || 0).toFixed(2)
   const quotaPerUnit =
@@ -102,6 +112,51 @@ export function SubscriptionPurchaseDialog(props: Props) {
   const limitReached =
     (props.purchaseLimit || 0) > 0 &&
     (props.purchaseCount || 0) >= (props.purchaseLimit || 0)
+
+  let balanceDetail = t('wallet.purchase.balanceDetail', {
+    required: formatQuota(balanceCost),
+    available: formatQuota(userQuota),
+  })
+  if (!allowBalancePay) {
+    balanceDetail = t('This plan does not allow balance redemption')
+  } else if (insufficientBalance) {
+    balanceDetail = `${t('Insufficient balance')} · ${balanceDetail}`
+  }
+
+  const providerName = (type: string, fallback: string) =>
+    props.providerNames?.[type] || fallback
+
+  const options: PayOption[] = [
+    {
+      key: 'balance',
+      label: t('wallet.purchase.balance'),
+      detail: balanceDetail,
+      disabled: !allowBalancePay || insufficientBalance,
+    },
+  ]
+  if (hasStripe) {
+    options.push({ key: 'stripe', label: providerName('stripe', 'Stripe') })
+  }
+  if (hasCreem) {
+    options.push({ key: 'creem', label: providerName('creem', 'Creem') })
+  }
+  if (hasWaffoPancake) {
+    options.push({
+      key: 'waffo_pancake',
+      label: providerName('waffo_pancake', 'Waffo Pancake'),
+    })
+  }
+  if (hasEpay) {
+    for (const m of props.epayMethods || []) {
+      options.push({ key: `epay:${m.type}`, label: m.name || m.type })
+    }
+  }
+
+  const firstEnabled = options.find((o) => !o.disabled)?.key ?? null
+  const currentKey =
+    selectedKey && options.some((o) => o.key === selectedKey && !o.disabled)
+      ? selectedKey
+      : firstEnabled
 
   const handlePayStripe = async () => {
     setPaying(true)
@@ -162,8 +217,8 @@ export function SubscriptionPurchaseDialog(props: Props) {
     typeof navigator !== 'undefined' &&
     /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
 
-  const handlePayEpay = async () => {
-    if (!selectedEpayMethod) {
+  const handlePayEpay = async (paymentMethod: string) => {
+    if (!paymentMethod) {
       toast.error(t('Please select a payment method'))
       return
     }
@@ -171,7 +226,7 @@ export function SubscriptionPurchaseDialog(props: Props) {
     try {
       const res = await paySubscriptionEpay({
         plan_id: plan.id,
-        payment_method: selectedEpayMethod,
+        payment_method: paymentMethod,
       })
       if (res.message === 'success' && res.url) {
         const form = document.createElement('form')
@@ -224,13 +279,27 @@ export function SubscriptionPurchaseDialog(props: Props) {
     }
   }
 
+  // [user-ui] 主按钮：按选中的付款方式调用对应的官方处理函数
+  const handleConfirm = () => {
+    if (!currentKey) return
+    if (currentKey === 'balance') return void handlePayBalance()
+    if (currentKey === 'stripe') return void handlePayStripe()
+    if (currentKey === 'creem') return void handlePayCreem()
+    if (currentKey === 'waffo_pancake') return void handlePayWaffoPancake()
+    if (currentKey.startsWith('epay:')) {
+      void handlePayEpay(currentKey.slice('epay:'.length))
+    }
+  }
+
+  const summaryRow = 'flex items-center justify-between gap-3 px-3 py-2.5'
+
   return (
     <Dialog
       open={props.open}
       onOpenChange={props.onOpenChange}
       title={
         <>
-          <Crown className='h-5 w-5' />
+          <Crown className='size-5' aria-hidden />
           {t('Purchase Subscription')}
         </>
       }
@@ -238,57 +307,67 @@ export function SubscriptionPurchaseDialog(props: Props) {
       titleClassName='flex items-center gap-2'
       contentHeight='auto'
       bodyClassName='space-y-4'
+      footerClassName='grid grid-cols-2 gap-2 sm:flex'
+      footer={
+        <>
+          <Button
+            variant='outline'
+            onClick={() => props.onOpenChange(false)}
+            disabled={paying}
+          >
+            {t('Cancel')}
+          </Button>
+          <Button
+            onClick={handleConfirm}
+            disabled={paying || limitReached || !currentKey}
+          >
+            {paying && <Loader2 className='animate-spin' aria-hidden />}
+            {t('wallet.purchase.confirm')}
+          </Button>
+        </>
+      }
     >
-      <div className='space-y-3 sm:space-y-4'>
-        <div className='bg-muted/50 space-y-2.5 rounded-lg border p-3 sm:space-y-3 sm:p-4'>
-          <div className='flex justify-between'>
-            <span className='text-muted-foreground text-sm'>
-              {t('Plan Name')}
-            </span>
-            <span className='max-w-[200px] truncate text-sm font-medium'>
-              {plan.title}
-            </span>
+      <div className='space-y-4'>
+        <dl className='border-edge-soft divide-border divide-y rounded-lg border-2 text-sm'>
+          <div className={summaryRow}>
+            <dt className='text-muted-foreground'>{t('Plan Name')}</dt>
+            <dd className='max-w-[200px] truncate font-medium'>{plan.title}</dd>
           </div>
-          <div className='flex items-center justify-between'>
-            <span className='text-muted-foreground text-sm'>
-              {t('Validity Period')}
-            </span>
-            <span className='flex items-center gap-1 text-sm'>
-              <CalendarClock className='h-3.5 w-3.5' />
+          <div className={summaryRow}>
+            <dt className='text-muted-foreground'>{t('Validity Period')}</dt>
+            <dd className='flex items-center gap-1'>
+              <CalendarClock className='size-3.5' aria-hidden />
               {formatDuration(plan, t)}
-            </span>
+            </dd>
           </div>
           {formatResetPeriod(plan, t) !== t('No Reset') && (
-            <div className='flex justify-between'>
-              <span className='text-muted-foreground text-sm'>
-                {t('Reset Period')}
-              </span>
-              <span className='text-sm'>{formatResetPeriod(plan, t)}</span>
+            <div className={summaryRow}>
+              <dt className='text-muted-foreground'>{t('Reset Period')}</dt>
+              <dd>{formatResetPeriod(plan, t)}</dd>
             </div>
           )}
-          <div className='flex items-center justify-between'>
-            <span className='text-muted-foreground text-sm'>
-              {t('Plan Quota')}
-            </span>
-            <span className='flex items-center gap-1 text-sm'>
-              <Package className='h-3.5 w-3.5' />
+          <div className={summaryRow}>
+            <dt className='text-muted-foreground'>{t('Plan Quota')}</dt>
+            <dd className='flex items-center gap-1 font-mono tabular-nums'>
+              <Package className='size-3.5' aria-hidden />
               {totalAmount > 0 ? formatQuota(totalAmount) : t('Unlimited')}
-            </span>
+            </dd>
           </div>
           {plan.upgrade_group && (
-            <div className='flex items-center justify-between'>
-              <span className='text-muted-foreground text-sm'>
-                {t('Upgrade Group')}
-              </span>
-              <GroupBadge group={plan.upgrade_group} />
+            <div className={summaryRow}>
+              <dt className='text-muted-foreground'>{t('Upgrade Group')}</dt>
+              <dd>
+                <GroupBadge group={plan.upgrade_group} />
+              </dd>
             </div>
           )}
-          <Separator />
-          <div className='flex items-center justify-between'>
-            <span className='text-sm font-medium'>{t('Amount Due')}</span>
-            <span className='text-primary text-lg font-bold'>${price}</span>
+          <div className={cn(summaryRow, 'bg-muted/40')}>
+            <dt className='font-medium'>{t('Amount Due')}</dt>
+            <dd className='font-mono text-lg font-bold tabular-nums'>
+              ${price}
+            </dd>
           </div>
-        </div>
+        </dl>
 
         {limitReached && (
           <Alert variant='destructive'>
@@ -299,100 +378,57 @@ export function SubscriptionPurchaseDialog(props: Props) {
           </Alert>
         )}
 
-        <div className='flex flex-col gap-2 rounded-md border p-3'>
-          <div className='flex items-center justify-between gap-2 text-xs'>
-            <span className='text-muted-foreground'>{t('Required')}</span>
-            <span>{formatQuota(balanceCost)}</span>
-          </div>
-          <div className='flex items-center justify-between gap-2 text-xs'>
-            <span className='text-muted-foreground'>{t('Available')}</span>
-            <span>{formatQuota(userQuota)}</span>
-          </div>
-          {!allowBalancePay ? (
-            <Alert variant='destructive'>
-              <AlertDescription>
-                {t('This plan does not allow balance redemption')}
-              </AlertDescription>
-            </Alert>
-          ) : (
-            insufficientBalance && (
-              <Alert variant='destructive'>
-                <AlertDescription>{t('Insufficient balance')}</AlertDescription>
-              </Alert>
-            )
-          )}
-          <Button
-            variant='outline'
-            onClick={handlePayBalance}
-            disabled={
-              paying || limitReached || !allowBalancePay || insufficientBalance
-            }
+        <div className='space-y-2'>
+          <div
+            id='subscription-pay-method-label'
+            className='text-sm font-semibold'
           >
-            {t('Pay with Balance')}
-          </Button>
-        </div>
-
-        {hasAnyPayment && (
-          <div className='space-y-3'>
-            <p className='text-muted-foreground text-xs'>
-              {t('Select payment method')}
-            </p>
-            {(hasStripe || hasCreem || hasWaffoPancake) && (
-              <div className='grid grid-cols-2 gap-2 sm:flex'>
-                {hasStripe && (
-                  <Button
-                    variant='outline'
-                    className='flex-1'
-                    onClick={handlePayStripe}
-                    disabled={paying || limitReached}
-                  >
-                    Stripe
-                  </Button>
-                )}
-                {hasCreem && (
-                  <Button
-                    variant='outline'
-                    className='flex-1'
-                    onClick={handlePayCreem}
-                    disabled={paying || limitReached}
-                  >
-                    Creem
-                  </Button>
-                )}
-                {hasWaffoPancake && (
-                  <Button
-                    variant='outline'
-                    className='flex-1'
-                    onClick={handlePayWaffoPancake}
-                    disabled={paying || limitReached}
-                  >
-                    Waffo Pancake
-                  </Button>
-                )}
-              </div>
-            )}
-            {hasEpay && (
-              <div className='grid grid-cols-[minmax(0,1fr)_auto] gap-2'>
-                <Combobox
-                  options={(props.epayMethods || []).map((m) => ({
-                    value: m.type,
-                    label: m.name || m.type,
-                  }))}
-                  value={selectedEpayMethod}
-                  onValueChange={(v) => v !== null && setSelectedEpayMethod(v)}
-                  disabled={limitReached}
-                  className='flex-1'
-                />
-                <Button
-                  onClick={handlePayEpay}
-                  disabled={paying || !selectedEpayMethod || limitReached}
-                >
-                  {t('Pay')}
-                </Button>
-              </div>
-            )}
+            {t('wallet.purchase.methodLabel')}
           </div>
-        )}
+          <div
+            role='group'
+            aria-labelledby='subscription-pay-method-label'
+            className='grid gap-2'
+          >
+            {options.map((option) => {
+              const selected = currentKey === option.key
+              return (
+                <Button
+                  key={option.key}
+                  variant='outline'
+                  aria-pressed={selected}
+                  disabled={option.disabled || paying || limitReached}
+                  onClick={() => setSelectedKey(option.key)}
+                  className={cn(
+                    'h-auto min-h-11 justify-between gap-3 px-3 py-2 text-left whitespace-normal',
+                    selected &&
+                      'border-primary-edge bg-accent text-accent-foreground hover:bg-accent dark:border-primary'
+                  )}
+                >
+                  <span className='flex min-w-0 flex-col items-start gap-0.5'>
+                    <span className='truncate'>{option.label}</span>
+                    {option.detail && (
+                      <span className='text-muted-foreground font-mono text-[11px] leading-4 font-normal tabular-nums'>
+                        {option.detail}
+                      </span>
+                    )}
+                  </span>
+                  {selected && (
+                    <Check
+                      className='text-primary-ink size-4 shrink-0'
+                      aria-hidden
+                    />
+                  )}
+                </Button>
+              )
+            })}
+          </div>
+          {!firstEnabled && (
+            <p className='text-muted-foreground text-xs'>
+              {t('wallet.purchase.noMethod')}
+            </p>
+          )}
+        </div>
       </div>
     </Dialog>
   )
