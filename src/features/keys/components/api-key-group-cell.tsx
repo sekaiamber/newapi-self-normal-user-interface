@@ -35,9 +35,13 @@ type ApiKeyGroupCellProps = {
   crossGroupRetry: boolean
   group: string
   ratio?: GroupRatio
+  /** [user-ui] 管理员给分组写的说明（/api/user/self/groups 的 desc），放进提示 */
+  description?: string
   shouldReduceMotion: boolean
 }
 
+// [user-ui] "分组"单元格（审计 2.5 K5）：不再给每行挂 "1x" 胶囊；只有价格不是标准价时
+// 显示方角的"价格 ×N"，分组说明和价格系数都放在提示里，数据仍可查看。
 export function ApiKeyGroupCell(props: ApiKeyGroupCellProps) {
   const { t } = useTranslation()
   const isMobile = useMediaQuery('(max-width: 640px)')
@@ -46,20 +50,43 @@ export function ApiKeyGroupCell(props: ApiKeyGroupCellProps) {
   if (group !== 'auto') {
     const ratio =
       group && typeof props.ratio === 'number' ? props.ratio : undefined
+    const description =
+      props.description && props.description !== group
+        ? props.description
+        : undefined
+    let priceText: string | undefined
+    if (ratio === 1) priceText = t('keys.group.standardPrice')
+    else if (ratio !== undefined) {
+      priceText = t('keys.group.priceRatioHint', { ratio })
+    }
     return (
       <TruncatedCell
         className={isMobile ? 'w-full' : 'max-w-50'}
         tabIndex={0}
-        tooltipContent={group || t('Follow user group')}
+        tooltipContent={
+          <span className='flex flex-col gap-0.5'>
+            <span>
+              {group || t('keys.group.followUserHint')}
+              {description && ` · ${description}`}
+            </span>
+            {priceText && <span>{priceText}</span>}
+          </span>
+        }
         tooltipClassName='break-all'
       >
-        <GroupBadge
-          group={group}
-          ratio={ratio}
-          ratioLabel={group ? undefined : t('Inherited')}
-          className='px-0'
-          containerClassName={cn('gap-3', isMobile && 'w-full justify-between')}
-        />
+        <span
+          className={cn(
+            'inline-flex max-w-full min-w-0 items-center gap-2 text-sm',
+            isMobile && 'w-full justify-between'
+          )}
+        >
+          <GroupBadge
+            group={group}
+            label={group ? undefined : t('keys.group.followUser')}
+            className='px-0'
+          />
+          <GroupRatioBadge ratio={ratio} />
+        </span>
       </TruncatedCell>
     )
   }
@@ -79,22 +106,16 @@ export function ApiKeyGroupCell(props: ApiKeyGroupCellProps) {
         }
       >
         <StatusBadge
-          label={t('Cross-group')}
+          label={t('Auto')}
           variant='info'
           copyable={false}
           className='px-0'
         />
-        <GroupRatioBadge
-          ratio={props.ratio}
-          isAuto
-          shouldReduceMotion={props.shouldReduceMotion}
-        />
       </TooltipTrigger>
       <TooltipContent>
         <span className='text-xs'>
-          {t(
-            'Automatically selects the best available group with circuit breaker mechanism'
-          )}
+          {/* [user-ui] 不用"熔断"等术语；依据 guide/feature-guide/admin/group.md */}
+          {t('keys.group.autoHint')}
         </span>
       </TooltipContent>
     </Tooltip>

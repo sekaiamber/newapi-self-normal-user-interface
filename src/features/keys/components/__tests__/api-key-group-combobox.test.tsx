@@ -39,6 +39,7 @@ const { useState } = await import('react')
 const { createInstance } = await import('i18next')
 const { I18nextProvider, initReactI18next } = await import('react-i18next')
 const { ApiKeyGroupCombobox } = await import('../api-key-group-combobox')
+const { overridesEn } = await import('@/i18n/overrides')
 
 const i18n = createInstance()
 await i18n.use(initReactI18next).init({
@@ -46,6 +47,7 @@ await i18n.use(initReactI18next).init({
   resources: {
     en: {
       translation: {
+        ...overridesEn,
         Auto: 'Auto',
         Ratio: 'Ratio',
         'Search...': 'Search...',
@@ -97,42 +99,22 @@ function getCommandItem(label: string): HTMLElement {
 }
 
 describe('API key group combobox Auto effect', () => {
-  test('uses the compact table capsules in the selected group and dropdown options', () => {
+  // [user-ui] 倍率改为方角"Price ×N"，标准价不显示；自动分组不再有流光动画（审计 2.5 K5、品牌规范）
+  test('shows square price badges only for non-standard groups and no animated border', () => {
     setReducedMotion(false)
     render(<Harness initialValue='auto' />)
 
     const trigger = getTrigger()
     expect(trigger).toHaveAttribute('aria-expanded', 'false')
     expect(trigger).toHaveAttribute('data-auto-group-effect', 'trigger')
-    expect(trigger).not.toHaveClass('bg-linear-to-r', 'overflow-hidden')
-    expect(trigger).toHaveClass('overflow-visible')
-
-    const triggerFlowBorder = trigger.querySelector<HTMLElement>(
-      '[data-auto-group-flow-border]'
-    )
-    expect(triggerFlowBorder).toHaveAttribute('aria-hidden', 'true')
-    expect(triggerFlowBorder).toHaveClass(
-      'pointer-events-none',
-      'auto-group-flow-border'
-    )
+    expect(trigger.querySelector('[data-auto-group-flow-border]')).toBe(null)
 
     const triggerRatio = within(trigger)
       .getByText('Auto')
       .closest('[data-slot="badge"]')
-    expect(triggerRatio).toHaveTextContent('Auto')
-    expect(triggerRatio).not.toHaveTextContent('Ratio')
-    expect(triggerRatio).not.toHaveTextContent('x')
+    expect(triggerRatio).toHaveClass('rounded-sm', 'text-primary-ink')
+    expect(triggerRatio).not.toHaveClass('rounded-full')
     expect(trigger).not.toHaveTextContent('自动')
-    expect(triggerRatio).toHaveClass(
-      'relative',
-      'overflow-visible',
-      'rounded-md',
-      'h-5',
-      'min-w-12'
-    )
-    expect(
-      triggerRatio?.querySelector('[data-auto-group-flow-border]')
-    ).toHaveClass('auto-group-flow-border-subtle')
 
     fireEvent.click(trigger)
     expect(trigger).toHaveAttribute('aria-expanded', 'true')
@@ -140,39 +122,17 @@ describe('API key group combobox Auto effect', () => {
     const autoOption = getCommandItem('Global automatic routing')
     expect(autoOption).toHaveAttribute('data-auto-group-effect', 'option')
     expect(autoOption).toHaveAttribute('aria-selected', 'true')
-    expect(autoOption).not.toHaveClass('bg-linear-to-r')
-    expect(autoOption).toHaveClass('overflow-visible')
-    expect(
-      autoOption.querySelector('[data-auto-group-flow-border]')
-    ).toBeInTheDocument()
-    const optionRatio = within(autoOption)
-      .getByText('Auto')
-      .closest('[data-slot="badge"]')
-    expect(optionRatio).toHaveTextContent('Auto')
-    expect(optionRatio).not.toHaveTextContent('Ratio')
-    expect(
-      optionRatio?.querySelector('[data-auto-group-flow-border]')
-    ).toHaveClass('auto-group-flow-border-subtle')
+    expect(autoOption.querySelector('[data-auto-group-flow-border]')).toBe(null)
 
     const defaultOption = getCommandItem('User group')
-    expect(defaultOption).not.toHaveAttribute('data-auto-group-effect')
-    expect(defaultOption.querySelector('[data-auto-group-flow-border]')).toBe(
-      null
-    )
-    const defaultRatio = within(defaultOption)
-      .getByText('1x')
+    expect(defaultOption.querySelector('[data-slot="badge"]')).toBe(null)
+    expect(defaultOption).not.toHaveTextContent('1x')
+
+    const vipRatio = within(getCommandItem('Priority group'))
+      .getByText('Price ×3')
       .closest('[data-slot="badge"]')
-    expect(defaultRatio).toHaveClass(
-      'h-5',
-      'min-w-12',
-      'rounded-full',
-      'tabular-nums',
-      'border-muted-foreground/30'
-    )
-    expect(defaultRatio).not.toHaveTextContent('Ratio')
-    expect(
-      defaultOption.querySelector('[data-auto-group-effect="ratio"]')
-    ).toBe(null)
+    expect(vipRatio).toHaveClass('rounded-sm', 'tabular-nums', 'text-warning')
+    expect(vipRatio).not.toHaveClass('rounded-full')
   })
 
   test('keeps search and selection behavior while leaving normal groups unstyled', async () => {

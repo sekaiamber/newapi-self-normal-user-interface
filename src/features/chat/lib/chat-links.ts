@@ -17,6 +17,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { API_KEY_STATUS } from '@/features/keys/constants'
+import { DEFAULT_SYSTEM_NAME } from '@/lib/constants'
+import { getSystemName } from '@/stores/system-config-store'
 
 export type ChatLinkType = 'web' | 'custom-protocol' | 'fluent'
 
@@ -38,6 +40,11 @@ export type ResolveChatUrlParams = {
   template: string
   apiKey?: string
   serverAddress: string
+  /**
+   * [user-ui] 导入到客户端后显示的提供商名称（目前只有 AQBot 的 name 参数使用）。
+   * 默认取站点名称，不再写死 "New API"（审计 3.3）。
+   */
+  providerName?: string
 }
 
 export type ActiveApiKey = {
@@ -92,6 +99,15 @@ export function chatLinkRequiresApiKey(url: string): boolean {
     url.includes('{deepchatConfig}') ||
     url.includes('{aqbotConfig}')
   )
+}
+
+/**
+ * [user-ui] 官方文档 apps/cc-switch.md：聊天设置里的 { "CC Switch": "ccswitch" } 用来在
+ * 密钥页启用 CC Switch 一键填入。它不是可打开的链接（直接打开会得到一个站内相对地址），
+ * 密钥页把它交给 CC Switch 对话框处理，不在聊天应用列表里重复出现。
+ */
+export function isCcSwitchPreset(preset: Pick<ChatPreset, 'url'>): boolean {
+  return preset.url.trim().toLowerCase() === 'ccswitch'
 }
 
 export function parseChatConfig(raw: RawChatConfig): ChatPreset[] {
@@ -154,6 +170,7 @@ export function resolveChatUrl({
   template,
   apiKey,
   serverAddress,
+  providerName,
 }: ResolveChatUrlParams): string {
   let url = template
   const safeServerAddress = serverAddress || ''
@@ -192,7 +209,9 @@ export function resolveChatUrl({
 
   if (url.includes('{aqbotConfig}')) {
     const query = [
-      `name=${encodeURIComponent('New API')}`,
+      // [user-ui] 只改显示名称；Cherry Studio / AionUi / DeepChat 载荷里的 id/platform
+      // "new-api" 是客户端识别提供商类型的字段，保持不变（审计 3.5）
+      `name=${encodeURIComponent(providerName || getSystemName() || DEFAULT_SYSTEM_NAME)}`,
       `baseurl=${encodeURIComponent(safeServerAddress)}`,
       `apikey=${encodeURIComponent(safeApiKey)}`,
       'type=openai',

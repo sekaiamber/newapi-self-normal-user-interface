@@ -29,6 +29,7 @@ import {
   chatLinkRequiresApiKey,
   resolveChatUrl,
 } from '@/features/chat/lib/chat-links'
+import { useApiBaseUrl } from '@/lib/api-endpoint'
 
 export const Route = createFileRoute('/_authenticated/chat/$chatId')({
   loader: async ({ params }) => {
@@ -42,7 +43,9 @@ export const Route = createFileRoute('/_authenticated/chat/$chatId')({
 function ChatRouteComponent() {
   const { t } = useTranslation()
   const { chatId } = Route.useParams()
-  const { chatPresets, serverAddress } = useChatPresets()
+  // [user-ui] 接口地址统一取 useApiBaseUrl()（与密钥页、文档一致）
+  const { chatPresets } = useChatPresets()
+  const serverAddress = useApiBaseUrl()
   const preset = useMemo(() => {
     const index = Number(chatId)
     if (!Number.isInteger(index)) return undefined
@@ -97,16 +100,16 @@ function ChatRouteComponent() {
       <div className='flex h-full flex-col items-center justify-center gap-4 p-6 text-center'>
         <MessageCircleWarning className='text-muted-foreground h-12 w-12' />
         <div className='space-y-1'>
-          <h2 className='text-lg font-semibold'>{t('Use sidebar shortcut')}</h2>
+          {/* [user-ui] 侧边栏已没有"聊天"入口，改为指向 API 密钥页的行菜单 */}
+          <h2 className='text-lg font-semibold'>
+            {t('keys.chat.externalTitle')}
+          </h2>
           <p className='text-muted-foreground'>
-            {preset.name}{' '}
-            {t(
-              'opens in an external client. Trigger it from the sidebar or API key actions to launch the configured application.'
-            )}
+            {t('keys.chat.externalDescription', { name: preset.name })}
           </p>
         </div>
-        <Button variant='outline' render={<Link to='/dashboard' />}>
-          {t('Return to dashboard')}
+        <Button variant='outline' render={<Link to='/keys' />}>
+          {t('keys.chat.goToKeys')}
         </Button>
       </div>
     )
@@ -154,6 +157,9 @@ function ChatRouteComponent() {
   }
 
   return (
+    // [user-ui] 官方原样：聊天预设是管理员配置的第三方网页，加 sandbox 可能让其无法正常运行，
+    // 行为保持与官方一致（该 lint 错误在官方原版即存在）。
+    // oxlint-disable-next-line react/iframe-missing-sandbox
     <iframe
       src={iframeSrc}
       key={iframeSrc}

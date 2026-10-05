@@ -24,27 +24,19 @@ import { cn } from '@/lib/utils'
 
 export type GroupRatio = number | string | null | undefined
 
+// [user-ui] 去掉阴影光晕（品牌规范：不要旧版的装饰性光效）
 export const AUTO_GROUP_FRAME_CLASS_NAME =
-  'border-primary/40 relative overflow-visible border shadow-sm shadow-primary/10'
+  'border-primary/40 relative overflow-visible border'
 
 type AutoGroupFlowBorderProps = {
   shouldReduceMotion: boolean
   appearance?: 'default' | 'subtle'
 }
 
-export function AutoGroupFlowBorder(props: AutoGroupFlowBorderProps) {
-  if (props.shouldReduceMotion) return null
-
-  return (
-    <span
-      aria-hidden='true'
-      data-auto-group-flow-border='true'
-      className={cn(
-        'auto-group-flow-border pointer-events-none absolute -inset-px',
-        props.appearance === 'subtle' && 'auto-group-flow-border-subtle'
-      )}
-    />
-  )
+// [user-ui] 自动分组的"流光边框"动画属于装饰性动效，品牌规范要求克制，不再渲染。
+// 保留组件与参数，调用方无需改动；恢复官方效果时还原本函数即可。
+export function AutoGroupFlowBorder(_props: AutoGroupFlowBorderProps) {
+  return null
 }
 
 type AutoGroupFrameProps = {
@@ -61,7 +53,8 @@ export function AutoGroupFrame(props: AutoGroupFrameProps) {
       data-auto-group-effect={props.effect}
       className={cn(
         AUTO_GROUP_FRAME_CLASS_NAME,
-        'inline-flex max-w-full shrink-0 rounded-4xl p-px',
+        // [user-ui] 方角（品牌圆角 4px），原为 rounded-4xl 胶囊
+        'inline-flex max-w-full shrink-0 rounded-lg p-px',
         props.className
       )}
     >
@@ -77,6 +70,10 @@ type GroupRatioBadgeProps = {
   shouldReduceMotion?: boolean
 }
 
+/**
+ * [user-ui] 倍率是管理端的计费概念（审计 2.5 K5）：用户侧写成"价格 ×1.5"，
+ * 标准价（×1）不显示徽章；方角，不用胶囊；说明放在 title 提示里。
+ */
 export function GroupRatioBadge(props: GroupRatioBadgeProps) {
   const { t } = useTranslation()
 
@@ -84,22 +81,31 @@ export function GroupRatioBadge(props: GroupRatioBadgeProps) {
     return null
   }
 
+  if (typeof props.ratio !== 'number') {
+    return (
+      <GroupMultiplierBadge
+        label={t('Auto')}
+        className={cn(
+          'min-w-0 rounded-sm',
+          props.isAuto && 'border-primary/30 bg-primary/10 text-primary-ink'
+        )}
+      />
+    )
+  }
+
+  if (props.ratio === 1) return null
+
   return (
-    <GroupMultiplierBadge
-      ratio={typeof props.ratio === 'number' ? props.ratio : undefined}
-      label={typeof props.ratio === 'number' ? undefined : t('Auto')}
-      className={cn(
-        props.isAuto &&
-          'overflow-visible rounded-md border-primary/30 bg-primary/10 text-primary'
-      )}
+    <span
+      className='inline-flex shrink-0'
+      title={t('keys.group.priceRatioHint', { ratio: props.ratio })}
     >
-      {props.isAuto && (
-        <AutoGroupFlowBorder
-          appearance='subtle'
-          shouldReduceMotion={props.shouldReduceMotion ?? false}
-        />
-      )}
-    </GroupMultiplierBadge>
+      <GroupMultiplierBadge
+        ratio={props.ratio}
+        label={t('keys.group.priceRatio', { ratio: props.ratio })}
+        className='min-w-0 rounded-sm tabular-nums'
+      />
+    </span>
   )
 }
 

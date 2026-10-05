@@ -273,10 +273,11 @@ export function AutoGroupOrderEditor(props: AutoGroupOrderEditorProps) {
                 title={option.desc}
                 className='bg-muted/30 flex min-w-0 items-center gap-1.5 rounded-md border px-2 py-1'
               >
+                {/* [user-ui] 序号用方角与深金文字（品牌规范：不用胶囊，金色文字用 -ink） */}
                 <span
                   data-slot='global-auto-order-index'
                   aria-hidden='true'
-                  className='bg-primary/10 text-primary flex size-4 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold tabular-nums'
+                  className='bg-primary/10 text-primary-ink flex size-4 shrink-0 items-center justify-center rounded-sm text-[10px] font-semibold tabular-nums'
                 >
                   {index + 1}
                 </span>

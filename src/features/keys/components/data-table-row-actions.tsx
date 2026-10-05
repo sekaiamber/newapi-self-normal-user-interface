@@ -23,10 +23,10 @@ import {
   Power,
   PowerOff,
   ExternalLink,
-  ArrowRightLeft,
+  Braces,
   Copy,
-  Link,
   Loader2,
+  Terminal,
 } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -35,7 +35,9 @@ import { toast } from 'sonner'
 import { DataTableRowActionMenu } from '@/components/data-table/core/row-action-menu'
 import { Button } from '@/components/ui/button'
 import {
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
@@ -47,30 +49,18 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { useChatPresets } from '@/features/chat/hooks/use-chat-presets'
-import { resolveChatUrl, type ChatPreset } from '@/features/chat/lib/chat-links'
-import { sendToFluent } from '@/features/chat/lib/send-to-fluent'
+import type { ChatPreset } from '@/features/chat/lib/chat-links'
+import { useApiBaseUrl } from '@/lib/api-endpoint'
 import { encodeChannelConnectionInfo } from '@/lib/channel-connection-info'
 import { copyToClipboard } from '@/lib/copy-to-clipboard'
 import { handleServerError } from '@/lib/handle-server-error'
 
 import { updateApiKeyStatus } from '../api'
 import { API_KEY_STATUS, ERROR_MESSAGES, SUCCESS_MESSAGES } from '../constants'
+import { useChatPresetLauncher } from '../hooks/use-chat-preset-launcher'
+import { formatBaseUrlAndKey } from '../lib/connection-text'
 import { apiKeySchema } from '../types'
 import { useApiKeys } from './api-keys-provider'
-
-function getServerAddress(): string {
-  try {
-    const raw = localStorage.getItem('status')
-    if (raw) {
-      const status = JSON.parse(raw)
-      if (status.server_address) return status.server_address as string
-    }
-  } catch {
-    /* empty */
-  }
-  return window.location.origin
-}
 
 type DataTableRowActionsProps<TData> = {
   row: Row<TData>
@@ -90,7 +80,10 @@ export function DataTableRowActions<TData>({
     loadingKeys,
   } = useApiKeys()
   const isEnabled = apiKey.status === API_KEY_STATUS.ENABLED
-  const { chatPresets, serverAddress } = useChatPresets()
+  // [user-ui] 接口地址统一取 useApiBaseUrl()；聊天预设的打开逻辑抽到 useChatPresetLauncher
+  const apiBaseUrl = useApiBaseUrl()
+  const { presets: chatPresets, launch: launchChatPreset } =
+    useChatPresetLauncher()
   const [isTogglingStatus, setIsTogglingStatus] = useState(false)
   const isRealKeyLoading = Boolean(loadingKeys[apiKey.id])
 
@@ -101,41 +94,19 @@ export function DataTableRowActions<TData>({
     async (preset: ChatPreset) => {
       const realKey = await resolveRealKey(apiKey.id)
       if (!realKey) return
-
-      if (preset.type === 'fluent') {
-        const success = sendToFluent(realKey, serverAddress)
-        if (success) {
-          toast.success(t('Sent the API key to FluentRead.'))
-        } else {
-          toast.info(
-            t(
-              'FluentRead extension not detected. Please ensure it is installed and active.'
-            )
-          )
-        }
-        return
-      }
-
-      const resolvedUrl = resolveChatUrl({
-        template: preset.url,
-        apiKey: realKey,
-        serverAddress,
-      })
-
-      if (!resolvedUrl) {
-        toast.error(t('Invalid chat link. Please contact your administrator.'))
-        return
-      }
-
-      if (typeof window === 'undefined') return
-
-      try {
-        window.open(resolvedUrl, '_blank', 'noopener')
-      } catch {
-        window.location.href = resolvedUrl
-      }
+      launchChatPreset(preset, realKey)
     },
-    [resolveRealKey, apiKey.id, serverAddress, t]
+    [resolveRealKey, apiKey.id, launchChatPreset]
+  )
+
+  const handleCopy = useCallback(
+    async (format: (realKey: string) => string) => {
+      const realKey = await resolveRealKey(apiKey.id)
+      if (!realKey) return
+      const ok = await copyToClipboard(format(realKey))
+      if (ok) toast.success(t('Copied'))
+    },
+    [resolveRealKey, apiKey.id, t]
   )
 
   const handleToggleStatus = async (
@@ -183,11 +154,8 @@ export function DataTableRowActions<TData>({
               onClick={handleToggleStatus}
               disabled={isTogglingStatus}
               aria-label={toggleLabel}
-              className={
-                isEnabled
-                  ? 'text-destructive hover:text-destructive'
-                  : 'text-emerald-600 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-400'
-              }
+              // [user-ui] 启用/停用不是危险操作：去掉红/绿色，红色只留给"删除"（审计 2.5 K9）
+              className='text-muted-foreground hover:text-foreground'
             />
           }
         >
@@ -215,85 +183,93 @@ export function DataTableRowActions<TData>({
         <TooltipContent>{t('Edit')}</TooltipContent>
       </Tooltip>
 
+      {/* [user-ui] 菜单按用途分成"复制"和"一键接入"两组（审计 2.5 K7/K8）：
+          复制密钥只保留单元格里的复制按钮；"复制连接信息"改名为导入配置（JSON）；
+          CC Switch 写明它接入的是哪些工具；聊天预设改名"聊天应用"。 */}
       <DataTableRowActionMenu
         ariaLabel={t('Open menu')}
-        contentClassName='w-[200px]'
+        contentClassName='w-64'
         modal={false}
       >
-        <DropdownMenuItem
-          disabled={isRealKeyLoading}
-          onClick={async () => {
-            const realKey = await resolveRealKey(apiKey.id)
-            if (!realKey) return
-            const ok = await copyToClipboard(realKey)
-            if (ok) toast.success(t('Copied'))
-          }}
-        >
-          {t('Copy Key')}
-          <DropdownMenuShortcut>
-            <Copy size={16} />
-          </DropdownMenuShortcut>
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          disabled={isRealKeyLoading}
-          onClick={async () => {
-            const realKey = await resolveRealKey(apiKey.id)
-            if (!realKey) return
-            const connStr = encodeChannelConnectionInfo(
-              realKey,
-              getServerAddress()
-            )
-            const ok = await copyToClipboard(connStr)
-            if (ok) toast.success(t('Copied'))
-          }}
-        >
-          {t('Copy Connection Info')}
-          <DropdownMenuShortcut>
-            <Link size={16} />
-          </DropdownMenuShortcut>
-        </DropdownMenuItem>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>{t('keys.menu.copyGroup')}</DropdownMenuLabel>
+          <DropdownMenuItem
+            disabled={isRealKeyLoading}
+            onClick={() =>
+              handleCopy((realKey) => formatBaseUrlAndKey(apiBaseUrl, realKey))
+            }
+          >
+            {t('keys.menu.copyBaseUrlAndKey')}
+            <DropdownMenuShortcut>
+              <Copy size={16} />
+            </DropdownMenuShortcut>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={isRealKeyLoading}
+            onClick={() =>
+              handleCopy((realKey) =>
+                encodeChannelConnectionInfo(realKey, apiBaseUrl)
+              )
+            }
+          >
+            {t('keys.menu.copyImportJson')}
+            <DropdownMenuShortcut>
+              <Braces size={16} />
+            </DropdownMenuShortcut>
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>{t('keys.menu.connectGroup')}</DropdownMenuLabel>
+          <DropdownMenuItem
+            onClick={async () => {
+              const realKey = await resolveRealKey(apiKey.id)
+              if (!realKey) return
+              setResolvedKey(realKey)
+              setCurrentRow(apiKey)
+              setOpen('cc-switch')
+            }}
+          >
+            <span className='flex min-w-0 flex-col'>
+              <span>{t('keys.menu.cliTools')}</span>
+              <span className='text-muted-foreground text-xs'>
+                {t('keys.menu.viaCcSwitch')}
+              </span>
+            </span>
+            <DropdownMenuShortcut>
+              <Terminal size={16} />
+            </DropdownMenuShortcut>
+          </DropdownMenuItem>
+          {hasChatPresets && (
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                {t('keys.menu.chatApps')}
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                {chatPresets.map((preset) => (
+                  <DropdownMenuItem
+                    key={preset.id}
+                    onClick={() => handleOpenChatPreset(preset)}
+                  >
+                    {preset.name}
+                    {preset.type !== 'web' && (
+                      <DropdownMenuShortcut>
+                        <ExternalLink size={16} />
+                      </DropdownMenuShortcut>
+                    )}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+          )}
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          onClick={async () => {
-            const realKey = await resolveRealKey(apiKey.id)
-            if (!realKey) return
-            setResolvedKey(realKey)
-            setCurrentRow(apiKey)
-            setOpen('cc-switch')
-          }}
-        >
-          {t('CC Switch')}
-          <DropdownMenuShortcut>
-            <ArrowRightLeft size={16} />
-          </DropdownMenuShortcut>
-        </DropdownMenuItem>
-        {hasChatPresets && (
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger>{t('Chat')}</DropdownMenuSubTrigger>
-            <DropdownMenuSubContent>
-              {chatPresets.map((preset) => (
-                <DropdownMenuItem
-                  key={preset.id}
-                  onClick={() => handleOpenChatPreset(preset)}
-                >
-                  {preset.name}
-                  {preset.type !== 'web' && (
-                    <DropdownMenuShortcut>
-                      <ExternalLink size={16} />
-                    </DropdownMenuShortcut>
-                  )}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-        )}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
+          variant='destructive'
           onClick={() => {
             setCurrentRow(apiKey)
             setOpen('delete')
           }}
-          className='text-destructive focus:text-destructive'
         >
           {t('Delete')}
           <DropdownMenuShortcut>

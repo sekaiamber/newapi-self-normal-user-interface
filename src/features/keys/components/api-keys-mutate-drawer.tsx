@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronDown, KeyRound, Settings2, WalletCards } from 'lucide-react'
+import { ChevronDown, KeyRound, Settings2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm, type SubmitErrorHandler } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
@@ -82,6 +82,9 @@ import {
   getApiKeyFormDefaultValues,
   transformFormDataToPayload,
   transformApiKeyToFormDefaults,
+  hasAdvancedFieldError,
+  hasAdvancedRestrictions,
+  shouldShowGroupField,
 } from '../lib'
 import type { ApiKey } from '../types'
 import {
@@ -105,7 +108,7 @@ export function ApiKeysMutateDrawer({
   const { t } = useTranslation()
   const isUpdate = !!currentRow
   const currentRowId = currentRow?.id
-  const { triggerRefresh } = useApiKeys()
+  const { triggerRefresh, showCreatedKeys } = useApiKeys()
   const { status, loading: statusLoading } = useStatus()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [advancedOpen, setAdvancedOpen] = useState(false)
@@ -222,19 +225,21 @@ export function ApiKeysMutateDrawer({
     if (initializedTarget === target) return
     if (isUpdate && currentRow) {
       if (apiKeyData?.success && apiKeyData.data) {
-        form.reset(
-          transformApiKeyToFormDefaults(
-            apiKeyData.data,
-            availableAutoGroupNames,
-            maxAutoGroups
-          )
+        const values = transformApiKeyToFormDefaults(
+          apiKeyData.data,
+          availableAutoGroupNames,
+          maxAutoGroups
         )
+        form.reset(values)
+        // [user-ui] 已设置模型/IP 限制的密钥默认展开"高级"
+        setAdvancedOpen(hasAdvancedRestrictions(values))
         setInitializedTarget(target)
       }
     } else {
       form.reset(
         getApiKeyFormDefaultValues(defaultUseAutoGroup && backendHasAuto)
       )
+      setAdvancedOpen(false)
       setInitializedTarget(target)
     }
   }, [
@@ -300,32 +305,31 @@ export function ApiKeysMutateDrawer({
       } else {
         // Create mode - handle batch creation
         const count = data.tokenCount || 1
-        let successCount = 0
+        // [user-ui] 记下成功创建的名称，用于在"密钥已创建"对话框里找回密钥（审计 2.5 K1）
+        const createdNames: string[] = []
 
         for (let i = 0; i < count; i++) {
+          const name =
+            i === 0 && data.name
+              ? data.name
+              : `${data.name || 'default'}-${Math.random().toString(36).slice(2, 8)}`
           const result = await createApiKey({
             ...basePayload,
-            name:
-              i === 0 && data.name
-                ? data.name
-                : `${data.name || 'default'}-${Math.random().toString(36).slice(2, 8)}`,
+            name,
           })
           if (result.success) {
-            successCount++
+            createdNames.push(name)
           } else {
             handleServerError(result, t(ERROR_MESSAGES.CREATE_FAILED))
             break
           }
         }
 
-        if (successCount > 0) {
-          toast.success(
-            t('Successfully created {{count}} API Key(s)', {
-              count: successCount,
-            })
-          )
+        if (createdNames.length > 0) {
+          // [user-ui] 不再只弹 toast：关闭抽屉后打开"密钥已创建"对话框
           onOpenChange(false)
           triggerRefresh()
+          showCreatedKeys(createdNames)
         }
       }
     } catch (error) {
@@ -335,7 +339,9 @@ export function ApiKeysMutateDrawer({
     }
   }
 
-  const onInvalid: SubmitErrorHandler<ApiKeyFormValues> = () => {
+  const onInvalid: SubmitErrorHandler<ApiKeyFormValues> = (errors) => {
+    // [user-ui] 出错的字段收在"高级"里时自动展开，避免错误被折叠藏起来
+    if (hasAdvancedFieldError(errors)) setAdvancedOpen(true)
     toast.error(t('Please fix the highlighted fields before saving'))
   }
 
@@ -356,13 +362,25 @@ export function ApiKeysMutateDrawer({
   const { meta: currencyMeta } = getCurrencyDisplay()
   const currencyLabel = getCurrencyLabel()
   const tokensOnly = currencyMeta.kind === 'tokens'
-  const quotaLabel = t('Quota ({{currency}})', { currency: currencyLabel })
   const quotaPlaceholder = tokensOnly
     ? t('Enter quota in tokens')
     : t('Enter quota in {{currency}}', { currency: currencyLabel })
   const autoGroupsMode = form.watch('auto_groups_mode')
   const unlimitedQuota = form.watch('unlimited_quota')
+  // [user-ui] 只有一个可选分组时不显示分组选择（审计 2.5 K5 ①）
+  const showGroupField = shouldShowGroupField(
+    groups.map((group) => group.value),
+    selectedGroup
+  )
 
+  let submitLabel = isUpdate ? t('Save changes') : t('keys.form.create')
+  if (isSubmitting) {
+    submitLabel = isUpdate ? t('Saving...') : t('keys.form.creating')
+  }
+
+  // [user-ui] 表单重排（审计 2.5 K6）：首屏只有名称、有效期、额度上限；
+  // 分组、自动分组顺序、跨分组重试、模型与 IP 限制、批量数量收进"高级"。
+  // 文案统一为"密钥 / 额度 / 分组"（原 zh 文案混用令牌、配额，且编辑说明误译为 "New API 密钥"）。
   return (
     <Sheet
       open={open}
@@ -382,8 +400,8 @@ export function ApiKeysMutateDrawer({
           </SheetTitle>
           <SheetDescription>
             {isUpdate
-              ? t('Update the API key by providing necessary info.')
-              : t('Add a new API key by providing necessary info.')}
+              ? t('keys.form.updateDescription')
+              : t('keys.form.createDescription')}
           </SheetDescription>
         </SheetHeader>
         <Form {...form}>
@@ -397,7 +415,7 @@ export function ApiKeysMutateDrawer({
             <SideDrawerSection>
               <SideDrawerSectionHeader
                 title={t('Basic Information')}
-                description={t('Set API key basic information')}
+                description={t('keys.form.basicDescription')}
                 icon={<KeyRound className='size-4' />}
                 iconTone='info'
               />
@@ -408,110 +426,15 @@ export function ApiKeysMutateDrawer({
                   <FormItem>
                     <FormLabel>{t('Name')}</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder={t('Enter a name')} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name='group'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('Group')}</FormLabel>
-                    <FormControl>
-                      <ApiKeyGroupCombobox
-                        options={groups}
-                        value={field.value}
-                        onValueChange={(group) => {
-                          field.onChange(group)
-                          if (group === 'auto') {
-                            form.setValue('cross_group_retry', true, {
-                              shouldDirty: true,
-                            })
-                            return
-                          }
-                          form.setValue('cross_group_retry', false, {
-                            shouldDirty: true,
-                          })
-                        }}
-                        placeholder={t('Select a group')}
+                      <Input
+                        {...field}
+                        placeholder={t('keys.form.namePlaceholder')}
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-
-              {selectedGroup === 'auto' && (
-                <FormField
-                  control={form.control}
-                  name='auto_groups'
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('Auto group order')}</FormLabel>
-                      <FormDescription>
-                        {t(
-                          'Choose and order the groups this API key will try.'
-                        )}
-                      </FormDescription>
-                      <FormControl>
-                        <AutoGroupOrderEditor
-                          value={field.value}
-                          mode={autoGroupsMode}
-                          options={groups}
-                          globalOptions={globalAutoGroupOptions}
-                          maxCount={maxAutoGroups}
-                          onChange={(value) => {
-                            form.setValue('auto_groups_mode', value.mode, {
-                              shouldDirty: true,
-                              shouldValidate: false,
-                            })
-                            form.setValue(
-                              'auto_groups',
-                              value.groups.slice(0, maxAutoGroups),
-                              {
-                                shouldDirty: true,
-                                shouldValidate: true,
-                              }
-                            )
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-
-              {selectedGroup === 'auto' && (
-                <FormField
-                  control={form.control}
-                  name='cross_group_retry'
-                  render={({ field }) => (
-                    <FormItem className={sideDrawerSwitchItemClassName()}>
-                      <div className='flex flex-col gap-0.5'>
-                        <FormLabel className='text-sm'>
-                          {t('Cross-group retry')}
-                        </FormLabel>
-                        <FormDescription className='line-clamp-2 text-xs sm:line-clamp-none'>
-                          {t(
-                            'When enabled, if channels in the current group fail, it will try channels in the next group in order.'
-                          )}
-                        </FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={!!field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-              )}
 
               <FormField
                 control={form.control}
@@ -572,52 +495,41 @@ export function ApiKeysMutateDrawer({
                 )}
               />
 
-              {!isUpdate && (
-                <FormField
-                  control={form.control}
-                  name='tokenCount'
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('Quantity')}</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          type='number'
-                          min='1'
-                          placeholder={t('Number of keys to create')}
-                          onChange={(e) =>
-                            field.onChange(
-                              Number.parseInt(e.target.value, 10) || 1
-                            )
-                          }
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        {t(
-                          'Create multiple API keys at once (random suffix will be added to names)'
-                        )}
+              {/* [user-ui] 开关改为"设置额度上限"（开 = 有上限），默认关闭即不限额 */}
+              <FormField
+                control={form.control}
+                name='unlimited_quota'
+                render={({ field }) => (
+                  <FormItem className={sideDrawerSwitchItemClassName()}>
+                    <div className='flex flex-col gap-0.5'>
+                      <FormLabel className='text-sm'>
+                        {t('keys.form.quotaLimit')}
+                      </FormLabel>
+                      <FormDescription className='text-xs'>
+                        {t('keys.form.quotaLimitHint')}
                       </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-            </SideDrawerSection>
-
-            <SideDrawerSection>
-              <SideDrawerSectionHeader
-                title={t('Quota Settings')}
-                description={t('Set quota amount and limits')}
-                icon={<WalletCards className='size-4' />}
-                iconTone='success'
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={!field.value}
+                        onCheckedChange={(checked) => field.onChange(!checked)}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
               />
+
               {!unlimitedQuota && (
                 <FormField
                   control={form.control}
                   name='remain_quota_dollars'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{quotaLabel}</FormLabel>
+                      <FormLabel>
+                        {t('keys.form.quotaAmount', {
+                          currency: currencyLabel,
+                        })}
+                      </FormLabel>
                       <FormControl>
                         <Input
                           {...field}
@@ -632,40 +544,13 @@ export function ApiKeysMutateDrawer({
                         />
                       </FormControl>
                       <FormDescription>
-                        {tokensOnly
-                          ? t('Enter the quota amount in tokens')
-                          : t('Enter the quota amount in {{currency}}', {
-                              currency: currencyLabel,
-                            })}
+                        {t('keys.form.quotaAmountHint')}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
               )}
-
-              <FormField
-                control={form.control}
-                name='unlimited_quota'
-                render={({ field }) => (
-                  <FormItem className={sideDrawerSwitchItemClassName()}>
-                    <div className='flex flex-col gap-0.5'>
-                      <FormLabel className='text-sm'>
-                        {t('Unlimited Quota')}
-                      </FormLabel>
-                      <FormDescription className='text-xs'>
-                        {t('Enable unlimited quota for this API key')}
-                      </FormDescription>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
             </SideDrawerSection>
 
             <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
@@ -680,19 +565,128 @@ export function ApiKeysMutateDrawer({
                 >
                   <SideDrawerSectionHeader
                     className='flex-1'
-                    title={t('Advanced Settings')}
-                    description={t('Set API key access restrictions')}
+                    title={t('keys.form.advancedTitle')}
+                    description={
+                      isUpdate
+                        ? t('keys.form.advancedDescription')
+                        : t('keys.form.advancedDescriptionCreate')
+                    }
                     icon={<Settings2 className='size-4' />}
                   />
                   <ChevronDown
                     className={cn(
-                      'text-muted-foreground size-4 shrink-0 transition-transform',
+                      'text-muted-foreground size-4 shrink-0 transition-transform motion-reduce:transition-none',
                       advancedOpen && 'rotate-180'
                     )}
                   />
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <div className='flex flex-col gap-4 pt-2'>
+                    {showGroupField && (
+                      <FormField
+                        control={form.control}
+                        name='group'
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t('Group')}</FormLabel>
+                            <FormControl>
+                              <ApiKeyGroupCombobox
+                                options={groups}
+                                value={field.value}
+                                onValueChange={(group) => {
+                                  field.onChange(group)
+                                  if (group === 'auto') {
+                                    form.setValue('cross_group_retry', true, {
+                                      shouldDirty: true,
+                                    })
+                                    return
+                                  }
+                                  form.setValue('cross_group_retry', false, {
+                                    shouldDirty: true,
+                                  })
+                                }}
+                                placeholder={t('keys.group.followUser')}
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              {t('keys.form.groupHint')}
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+
+                    {selectedGroup === 'auto' && (
+                      <FormField
+                        control={form.control}
+                        name='auto_groups'
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t('keys.form.autoOrder')}</FormLabel>
+                            <FormDescription>
+                              {t(
+                                'Choose and order the groups this API key will try.'
+                              )}
+                            </FormDescription>
+                            <FormControl>
+                              <AutoGroupOrderEditor
+                                value={field.value}
+                                mode={autoGroupsMode}
+                                options={groups}
+                                globalOptions={globalAutoGroupOptions}
+                                maxCount={maxAutoGroups}
+                                onChange={(value) => {
+                                  form.setValue(
+                                    'auto_groups_mode',
+                                    value.mode,
+                                    {
+                                      shouldDirty: true,
+                                      shouldValidate: false,
+                                    }
+                                  )
+                                  form.setValue(
+                                    'auto_groups',
+                                    value.groups.slice(0, maxAutoGroups),
+                                    {
+                                      shouldDirty: true,
+                                      shouldValidate: true,
+                                    }
+                                  )
+                                }}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+
+                    {selectedGroup === 'auto' && (
+                      <FormField
+                        control={form.control}
+                        name='cross_group_retry'
+                        render={({ field }) => (
+                          <FormItem className={sideDrawerSwitchItemClassName()}>
+                            <div className='flex flex-col gap-0.5'>
+                              <FormLabel className='text-sm'>
+                                {t('Cross-group retry')}
+                              </FormLabel>
+                              <FormDescription className='line-clamp-2 text-xs sm:line-clamp-none'>
+                                {t('keys.form.crossGroupRetryHint')}
+                              </FormDescription>
+                            </div>
+                            <FormControl>
+                              <Switch
+                                checked={!!field.value}
+                                onCheckedChange={field.onChange}
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                    )}
+
                     <FormField
                       control={form.control}
                       name='model_limits'
@@ -747,6 +741,35 @@ export function ApiKeysMutateDrawer({
                         </FormItem>
                       )}
                     />
+
+                    {!isUpdate && (
+                      <FormField
+                        control={form.control}
+                        name='tokenCount'
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t('keys.form.quantity')}</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                type='number'
+                                min='1'
+                                placeholder={t('Number of keys to create')}
+                                onChange={(e) =>
+                                  field.onChange(
+                                    Number.parseInt(e.target.value, 10) || 1
+                                  )
+                                }
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              {t('keys.form.quantityHint')}
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
                   </div>
                 </CollapsibleContent>
               </SideDrawerSection>
@@ -765,7 +788,7 @@ export function ApiKeysMutateDrawer({
             disabled={!isFormInitialized || isSubmitting}
             className='w-full sm:w-auto'
           >
-            {isSubmitting ? t('Saving...') : t('Save changes')}
+            {submitLabel}
           </Button>
         </SheetFooter>
       </SheetContent>

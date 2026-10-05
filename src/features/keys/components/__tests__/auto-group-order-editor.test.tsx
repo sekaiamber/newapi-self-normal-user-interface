@@ -23,6 +23,8 @@ const { useState } = await import('react')
 const { createInstance } = await import('i18next')
 const { I18nextProvider, initReactI18next } = await import('react-i18next')
 const { AutoGroupOrderEditor } = await import('../auto-group-order-editor')
+// [user-ui] 加载 keys 覆盖层文案（倍率徽章改为"Price ×N"）
+const { overridesEn } = await import('@/i18n/overrides')
 
 const i18n = createInstance()
 await i18n.use(initReactI18next).init({
@@ -30,6 +32,7 @@ await i18n.use(initReactI18next).init({
   resources: {
     en: {
       translation: {
+        ...overridesEn,
         '{{count}} / {{max}} groups selected':
           '{{count}} / {{max}} groups selected',
         'Add Auto group': 'Add Auto group',
@@ -256,21 +259,22 @@ describe('Auto group order editor', () => {
         name: 'VIP',
         title: 'Priority access',
         description: 'Priority access',
-        ratio: '3x',
+        ratio: 'Price ×3',
       },
       {
         index: '2',
         name: 'Default',
         title: 'Standard access',
         description: 'Standard access',
-        ratio: '1x',
+        // [user-ui] 标准价（×1）不显示倍率徽章
+        ratio: undefined,
       },
       {
         index: '3',
         name: 'Team',
         title: 'Shared access',
         description: 'Shared access',
-        ratio: '2x',
+        ratio: 'Price ×2',
       },
     ])
 

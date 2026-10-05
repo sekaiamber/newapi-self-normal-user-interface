@@ -16,6 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+// [user-ui] 列表新约定（审计 2.5 K2/K3/K4/K5/K7/K8/K9/K11）：默认列精简、额度两行带标签与货币符号、
+// 复制密钥只在单元格、行菜单分"复制 / 一键接入"两组、空状态带创建按钮、手机卡片精简。
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   createMemoryHistory,
@@ -44,6 +46,7 @@ import { Toaster, toast } from 'sonner'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
 import zh from '@/i18n/locales/zh.json'
+import { overridesEn, overridesZh } from '@/i18n/overrides'
 import { api } from '@/lib/api'
 import {
   DEFAULT_CURRENCY_CONFIG,
@@ -74,7 +77,7 @@ const key = apiKeySchema.parse({
 const i18n = createInstance()
 await i18n.init({
   lng: 'en',
-  resources: { en: { translation: {} } },
+  resources: { en: { translation: { ...overridesEn } } },
   initAsync: false,
 })
 const clients: QueryClient[] = []
@@ -151,37 +154,36 @@ afterEach(() => {
     .setConfig({ currency: { ...DEFAULT_CURRENCY_CONFIG } })
 })
 
-it('shows desktop remaining and used amounts side by side without labels, with the currency only in the header', () => {
+it('labels desktop remaining and used amounts and shows the currency on the values', () => {
   renderQuota()
   expect(
-    screen.getByRole('columnheader', { name: 'Quota ($)' })
+    screen.getByRole('columnheader', { name: 'Quota' })
   ).toBeInTheDocument()
   const trigger = screen.getByRole('button', {
-    name: /Remaining 80; Remaining percentage 40%; Used amount 120/,
+    name: /Remaining \$80; Remaining percentage 40%; Used amount \$120/,
   })
-  expect(trigger).toHaveTextContent('80120')
-  expect(trigger).not.toHaveTextContent(/Remaining|Used amount/)
+  expect(trigger).toHaveTextContent('Remaining$80Used amount$120')
   expect(
     trigger.querySelector('[data-slot="api-key-quota-values"]')
-  ).toHaveClass('grid-cols-2')
-  expect(within(trigger).getByText('80')).toHaveClass('text-left')
-  expect(within(trigger).getByText('120')).toHaveClass('text-right')
-  expect(trigger.parentElement).toHaveClass('max-w-45')
-  expect(trigger).not.toHaveTextContent('$')
-  expect(trigger.querySelector('svg')).toBeNull()
+  ).toHaveClass('flex-col')
+  expect(within(trigger).getByText('$80')).toHaveClass(
+    'font-mono',
+    'tabular-nums'
+  )
+  expect(trigger.parentElement).toHaveClass('max-w-48')
   expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '40')
 })
 
 it.each([
-  ['unused', 500000, 0, 100, 'text-emerald-500'],
-  ['low remaining', 150000, 350000, 30, 'text-amber-500'],
-  ['critical remaining', 50000, 450000, 10, 'text-rose-500'],
+  ['unused', 500000, 0, 100, 'text-success'],
+  ['low remaining', 150000, 350000, 30, 'text-warning'],
+  ['critical remaining', 50000, 450000, 10, 'text-destructive'],
   ['exhausted', 0, 500000, 0, null],
   ['overdrawn', -50000, 500000, 0, null],
   ['zero total', 0, 0, 0, null],
   ['negative total', -500000, 100000, 0, null],
 ])(
-  'renders the %s progress without invalid values or hiding negative balances',
+  'renders the %s progress with semantic colors and keeps negative balances visible',
   (_label, remaining, used, percentage, color) => {
     renderQuota({ ...key, remain_quota: remaining, used_quota: used })
     const button = screen.getByRole('button')
@@ -190,26 +192,22 @@ it.each([
     if (color) expect(progress).toHaveClass(color)
     if (remaining < 0) {
       expect(
-        within(button).getByText(remaining === -500000 ? '-1' : '-0.1')
+        within(button).getByText(remaining === -500000 ? '-$1' : '-$0.1')
       ).toHaveClass('text-destructive')
     }
   }
 )
 
-it('shows unlimited with cumulative usage and explains it on demand', async () => {
+it('shows "No limit" with cumulative usage and says calls still use the account balance', async () => {
   renderQuota({ ...key, unlimited_quota: true })
-  const button = screen.getByRole('button', { name: /Unlimited/ })
-  expect(button).toHaveTextContent('Unlimited')
-  expect(button).toHaveTextContent('Unlimited120')
-  expect(button).not.toHaveTextContent(/Remaining|Used amount/)
-  expect(within(button).getByText('Unlimited')).toHaveClass('text-left')
+  const button = screen.getByRole('button', { name: /No limit/ })
+  expect(button).toHaveTextContent('No limitUsed amount$120')
   expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
   await userEvent.click(button)
   const detail = await screen.findByRole('dialog')
-  expect(within(detail).getByText('120')).toBeInTheDocument()
-  expect(detail).toHaveTextContent(
-    'This API key has no quota limit. Requests still require available wallet or subscription quota.'
-  )
+  expect(within(detail).getByText('$120')).toBeInTheDocument()
+  expect(detail).toHaveTextContent(overridesEn['keys.quota.unlimitedHint'])
+  expect(detail).not.toHaveTextContent(/wallet/i)
 })
 
 it('keeps small custom-currency amounts exact and shows full values in the detail', async () => {
@@ -222,15 +220,14 @@ it('keeps small custom-currency amounts exact and shows full values in the detai
   })
   renderQuota({ ...key, remain_quota: 1900, used_quota: 1100 })
   expect(
-    screen.getByRole('columnheader', { name: 'Quota (🐱)' })
+    screen.getByRole('columnheader', { name: 'Quota' })
   ).toBeInTheDocument()
   const button = screen.getByRole('button')
-  expect(button).toHaveTextContent('0.0038')
-  expect(button).not.toHaveTextContent('🐱')
+  expect(button).toHaveTextContent('🐱 0.0038')
   await userEvent.click(button)
   const detail = await screen.findByRole('dialog')
-  expect(within(detail).getByText('0.0022')).toBeInTheDocument()
-  expect(within(detail).getByText('0.006')).toBeInTheDocument()
+  expect(within(detail).getByText('🐱 0.0022')).toBeInTheDocument()
+  expect(within(detail).getByText('🐱 0.006')).toBeInTheDocument()
 })
 
 it.each([
@@ -261,7 +258,7 @@ it('recalculates the progress when remaining quota is edited', () => {
     </I18nextProvider>
   )
   expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '60')
-  expect(screen.getByText('180')).toBeInTheDocument()
+  expect(screen.getByText('$180')).toBeInTheDocument()
 })
 
 it('opens details with the keyboard and restores focus when Escape closes them', async () => {
@@ -271,9 +268,9 @@ it('opens details with the keyboard and restores focus when Escape closes them',
   act(() => button.focus())
   await user.keyboard('{Enter}')
   const detail = await screen.findByRole('dialog')
-  expect(within(detail).getByText('80')).toBeInTheDocument()
-  expect(within(detail).getByText('120')).toBeInTheDocument()
-  expect(within(detail).getByText('200')).toBeInTheDocument()
+  expect(within(detail).getByText('$80')).toBeInTheDocument()
+  expect(within(detail).getByText('$120')).toBeInTheDocument()
+  expect(within(detail).getByText('$200')).toBeInTheDocument()
   expect(within(detail).getByText('Remaining percentage')).toBeInTheDocument()
   expect(within(detail).getByText('40%')).toBeInTheDocument()
   await user.keyboard('{Escape}')
@@ -287,10 +284,10 @@ it('keeps a long amount within its column while showing the full amount in detai
   renderQuota({ ...key, remain_quota: 123456789000000, used_quota: 0 })
   const button = screen.getByRole('button')
   expect(button).toHaveClass('w-full', 'min-w-0')
-  expect(within(button).getByText('246,913,578')).toHaveClass('truncate')
+  expect(within(button).getByText('$246,913,578')).toHaveClass('truncate')
   await userEvent.click(button)
   expect(
-    within(await screen.findByRole('dialog')).getAllByText('246,913,578')
+    within(await screen.findByRole('dialog')).getAllByText('$246,913,578')
   ).toHaveLength(2)
 })
 
@@ -303,15 +300,28 @@ function KeysPage() {
   )
 }
 
-async function renderKeysPage(status = 1, overrides: Partial<ApiKey> = {}) {
+async function renderKeysPage(
+  status = 1,
+  overrides: Partial<ApiKey> = {},
+  options: {
+    items?: ApiKey[]
+    groups?: Record<string, { desc?: string; ratio: number | string }>
+  } = {}
+) {
   let currentKey = { ...key, status, ...overrides }
   vi.mocked(api.get).mockImplementation(async (url) => {
     if (url.startsWith('/api/token/')) {
+      const items = options.items ?? [currentKey]
       return {
-        data: { success: true, data: { items: [currentKey], total: 1 } },
+        data: { success: true, data: { items, total: items.length } },
       }
     }
-    return { data: { success: true, data: { default: { ratio: 1 } } } }
+    return {
+      data: {
+        success: true,
+        data: options.groups ?? { default: { ratio: 1 } },
+      },
+    }
   })
   const post = vi.spyOn(api, 'post').mockResolvedValue({
     data: { success: true, data: { key: 'fake-key-for-test-only' } },
@@ -345,58 +355,70 @@ async function renderKeysPage(status = 1, overrides: Partial<ApiKey> = {}) {
       </QueryClientProvider>
     </I18nextProvider>
   )
-  await screen.findByText(currentKey.name)
+  if (options.items?.length === 0) {
+    await screen.findByText('No API keys yet')
+  } else {
+    await screen.findByText(currentKey.name)
+  }
   return { post, put }
 }
 
-it('combines creation and last use while keeping expiry, models and IP restrictions separate', async () => {
+it('shows only the everyday columns by default and keeps the rest in the column picker', async () => {
   await renderKeysPage()
-  for (const name of ['Name', 'API Key', 'Group', 'Models', 'IP Restriction']) {
+  for (const name of [
+    'Name',
+    'Status',
+    'API Key',
+    'Quota',
+    'Expiration Time',
+  ]) {
     expect(screen.getByRole('columnheader', { name })).toBeInTheDocument()
   }
-  expect(screen.getByRole('columnheader', { name: 'Time' })).toBeInTheDocument()
-  expect(
-    screen.getByRole('columnheader', { name: 'Expires' })
-  ).toBeInTheDocument()
-  const timeCell = screen.getByRole('cell', { name: /Created.*Last Used/ })
-  expect(within(timeCell).getByText('Last Used')).toBeInTheDocument()
-  const quotaHeader = screen.getByRole('columnheader', { name: 'Quota ($)' })
-  const quotaTrigger = screen.getByRole('button', {
-    name: /Remaining 80; Remaining percentage 40%; Used amount 120/,
-  })
-  expect(quotaHeader).not.toHaveClass('pr-8')
-  expect(quotaTrigger.closest('td')).not.toHaveClass('pr-8')
+  for (const name of ['Group', 'Models', 'IP Restriction', 'Time']) {
+    expect(screen.queryByRole('columnheader', { name })).not.toBeInTheDocument()
+  }
+  expect(screen.queryByText('1x')).not.toBeInTheDocument()
 })
 
-it('restores dates hidden by the old default and preserves unrelated column preferences', async () => {
+it('keeps saved column choices under the new storage key and ignores the old one', async () => {
   localStorage.setItem(
     'api-keys:column-visibility',
-    JSON.stringify({
-      created_time: false,
-      accessed_time: false,
-      expired_time: false,
-      model_limits: false,
-    })
+    JSON.stringify({ name: false })
+  )
+  localStorage.setItem(
+    'api-keys:column-visibility:v2',
+    JSON.stringify({ model_limits: true })
   )
   await renderKeysPage()
-  expect(screen.getByRole('columnheader', { name: 'Time' })).toBeInTheDocument()
+  expect(screen.getByRole('columnheader', { name: 'Name' })).toBeInTheDocument()
   expect(
-    screen.getByRole('columnheader', { name: 'Expires' })
+    screen.getByRole('columnheader', { name: 'Models' })
   ).toBeInTheDocument()
   expect(
-    screen.queryByRole('columnheader', { name: 'Models' })
+    screen.queryByRole('columnheader', { name: 'Group' })
   ).not.toBeInTheDocument()
+})
+
+it('offers a create button when there are no keys at all', async () => {
+  await renderKeysPage(1, {}, { items: [] })
+  expect(
+    screen.getByText(overridesEn['keys.empty.description'])
+  ).toBeInTheDocument()
+  expect(
+    screen.getByRole('button', { name: 'Create your first key' })
+  ).toBeInTheDocument()
 })
 
 it.each([
   [1, 'Disable', 2, 'Disabled'],
   [2, 'Enable', 1, 'Enabled'],
 ])(
-  'keeps status %s toggling at its original row button without fetching a full key',
+  'keeps status %s toggling at its neutral row button without fetching a full key',
   async (status, action, nextStatus, nextLabel) => {
     const { post, put } = await renderKeysPage(status)
     const user = userEvent.setup()
     const button = screen.getByRole('button', { name: action })
+    expect(button).not.toHaveClass('text-destructive')
     act(() => button.focus())
     await user.keyboard('{Enter}')
     await waitFor(() =>
@@ -431,9 +453,8 @@ it.each([true, false])(
         : { data: { success: false, message: 'Verification required' } }
     )
     const copy = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue()
-    await user.click(screen.getByRole('button', { name: 'Open menu' }))
     expect(post).not.toHaveBeenCalled()
-    await user.click(screen.getByRole('menuitem', { name: 'Copy Key' }))
+    await user.click(screen.getByRole('button', { name: 'Copy API key' }))
     await waitFor(() => expect(post).toHaveBeenCalledWith('/api/token/7/key'))
     if (success) {
       await waitFor(() =>
@@ -446,34 +467,82 @@ it.each([true, false])(
   }
 )
 
-it('keeps full mobile information without group or quota section headings', async () => {
+it('groups the row menu into copy and one-click setup without a duplicate copy-key item', async () => {
+  const user = userEvent.setup()
+  await renderKeysPage()
+  await user.click(screen.getByRole('button', { name: 'Open menu' }))
+  const menu = await screen.findByRole('menu')
+  expect(within(menu).getByText('Copy')).toBeInTheDocument()
+  expect(within(menu).getByText('One-click setup')).toBeInTheDocument()
+  expect(
+    within(menu).getByRole('menuitem', {
+      name: /Claude Code \/ Codex \/ Gemini CLI/,
+    })
+  ).toHaveTextContent('Imports via CC Switch')
+  expect(
+    within(menu).queryByRole('menuitem', { name: 'Copy Key' })
+  ).not.toBeInTheDocument()
+  expect(
+    within(menu).getByRole('menuitem', { name: 'Delete' })
+  ).toHaveAttribute('data-variant', 'destructive')
+})
+
+it.each([
+  [
+    'Base URL and key',
+    (origin: string) =>
+      `Base URL: ${origin}/v1\nAPI Key: sk-fake-key-for-test-only`,
+  ],
+  [
+    'Import config (JSON)',
+    (origin: string) =>
+      JSON.stringify({
+        _type: 'newapi_channel_conn',
+        key: 'sk-fake-key-for-test-only',
+        url: origin,
+      }),
+  ],
+])('copies "%s" with the shared Base URL', async (item, expected) => {
+  const user = userEvent.setup()
+  await renderKeysPage()
+  const copy = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue()
+  await user.click(screen.getByRole('button', { name: 'Open menu' }))
+  await user.click(await screen.findByRole('menuitem', { name: item }))
+  await waitFor(() =>
+    expect(copy).toHaveBeenCalledWith(expected(window.location.origin))
+  )
+})
+
+it('keeps the mobile card to the essentials when there is one group and no restrictions', async () => {
   const matchMedia = window.matchMedia
   vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({
     ...matchMedia(query),
     matches: query.includes('max-width'),
   }))
-  i18n.addResourceBundle('zh', 'translation', zh.translation)
+  i18n.addResourceBundle('zh', 'translation', {
+    ...zh.translation,
+    ...overridesZh,
+  })
   await i18n.changeLanguage('zh')
   try {
     await renderKeysPage()
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
-    expect(screen.queryByText('额度 ($)')).not.toBeInTheDocument()
-    expect(screen.getByText('($)')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /剩余 80;/ })).toBeInTheDocument()
-    expect(screen.getByText('80')).toBeInTheDocument()
-    expect(screen.getByText('120')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /剩余 \$80;/ })
+    ).toBeInTheDocument()
+    expect(screen.getByText('$80')).toBeInTheDocument()
+    expect(screen.getByText('$120')).toBeInTheDocument()
     expect(screen.getByText(zh.translation['Created'])).toBeInTheDocument()
     expect(screen.getByText(zh.translation['Last Used'])).toBeInTheDocument()
-    expect(screen.getByText(zh.translation['Expires'])).toBeInTheDocument()
     expect(
-      screen.queryByText(zh.translation['Group'], { exact: true })
-    ).not.toBeInTheDocument()
-    expect(screen.getByText('default')).toBeInTheDocument()
-    expect(screen.getByText('1x')).toBeInTheDocument()
-    expect(screen.getByText(zh.translation['Models'])).toBeInTheDocument()
-    expect(
-      screen.getByText(zh.translation['IP Restriction'])
+      screen.getByText(zh.translation['Expiration Time'])
     ).toBeInTheDocument()
+    expect(screen.queryByText('default')).not.toBeInTheDocument()
+    expect(screen.queryByText('1x')).not.toBeInTheDocument()
+    expect(screen.queryByText(zh.translation['Models'])).not.toBeInTheDocument()
+    expect(
+      screen.queryByText(zh.translation['IP Restriction'])
+    ).not.toBeInTheDocument()
   } finally {
     await i18n.changeLanguage('en')
   }
@@ -494,23 +563,15 @@ it('keeps mobile quota readable and opens complete model and IP restrictions by 
     allow_ips: '192.0.2.1\n2001:db8::1',
   })
   const quota = screen.getByRole('button', {
-    name: /Unlimited; Used amount 4,490.16/,
+    name: /No limit; Used amount \$4,490.16/,
   })
-  expect(quota).toHaveTextContent('Remaining($)UnlimitedUsed amount4,490.16')
+  expect(quota).toHaveTextContent('RemainingNo limitUsed amount$4,490.16')
   expect(quota.parentElement).toHaveClass('w-full')
-  expect(quota.parentElement).not.toHaveClass('max-w-45')
   expect(quota.querySelector('[data-slot="api-key-quota-values"]')).toHaveClass(
     'grid-cols-[auto_minmax(0,1fr)]'
   )
-  expect(within(quota).getByText('Unlimited')).toHaveClass(
-    'text-right',
-    'text-sm',
-    'font-normal'
-  )
-  expect(within(quota).getByText('4,490.16')).toHaveClass(
+  expect(within(quota).getByText('$4,490.16')).toHaveClass(
     'tabular-nums',
-    'text-sm',
-    'font-normal',
     'text-right'
   )
   await userEvent.click(screen.getByRole('button', { name: /Models: 2 model/ }))
@@ -524,4 +585,25 @@ it('keeps mobile quota readable and opens complete model and IP restrictions by 
   details = await screen.findByRole('dialog')
   expect(within(details).getByText('192.0.2.1')).toBeVisible()
   expect(within(details).getByText('2001:db8::1')).toBeVisible()
+})
+
+it('labels the group on mobile cards when the account has several groups', async () => {
+  const matchMedia = window.matchMedia
+  vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({
+    ...matchMedia(query),
+    matches: query.includes('max-width'),
+  }))
+  await renderKeysPage(
+    1,
+    {},
+    {
+      groups: {
+        default: { desc: 'Standard', ratio: 1 },
+        vip: { desc: 'Priority', ratio: 2 },
+      },
+    }
+  )
+  expect(await screen.findByText('Group')).toBeInTheDocument()
+  expect(screen.getByText('default')).toBeInTheDocument()
+  expect(screen.queryByText('1x')).not.toBeInTheDocument()
 })

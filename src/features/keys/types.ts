@@ -111,3 +111,5 @@ export type ApiKeysDialogType =
   | 'delete'
   | 'batch-delete'
   | 'cc-switch'
+  // [user-ui] 创建成功后展示完整密钥、接口地址与示例的对话框（审计 2.5 K1）
+  | 'created'

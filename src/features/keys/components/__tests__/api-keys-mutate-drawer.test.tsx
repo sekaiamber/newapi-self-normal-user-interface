@@ -26,11 +26,13 @@ const { QueryClient, QueryClientProvider } =
 const { api } = await import('@/lib/api')
 const { ApiKeysProvider } = await import('../api-keys-provider')
 const { ApiKeysMutateDrawer } = await import('../api-keys-mutate-drawer')
+// [user-ui] 表单文案改用 keys 覆盖层（批量创建数量、创建密钥）
+const { overridesEn } = await import('@/i18n/overrides')
 
 const i18n = createInstance()
 await i18n.use(initReactI18next).init({
   lng: 'en',
-  resources: { en: { translation: {} } },
+  resources: { en: { translation: { ...overridesEn } } },
 })
 
 type ApiMethod = (url: string, data?: unknown) => Promise<{ data: unknown }>
@@ -84,14 +86,28 @@ function installApiFixtures(createdPayloads: Array<Record<string, unknown>>) {
   }
 }
 
-async function renderCreateDrawer(): Promise<void> {
+const DEFAULT_GROUP_FIXTURE: Record<
+  string,
+  { desc: string; ratio: number | string }
+> = {
+  auto: { desc: 'Automatic routing', ratio: 'auto' },
+  default: { desc: 'Standard access', ratio: 1 },
+  vip: { desc: 'Priority access', ratio: 2 },
+}
+
+async function renderCreateDrawer(
+  groups: Record<
+    string,
+    { desc: string; ratio: number | string }
+  > = DEFAULT_GROUP_FIXTURE
+): Promise<void> {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
   const freshAt = Date.now() + 60_000
   queryClient.setQueryData(
     ['status'],
-    { default_use_auto_group: true },
+    { default_use_auto_group: 'auto' in groups },
     { updatedAt: freshAt }
   )
   queryClient.setQueryData(
@@ -101,14 +117,7 @@ async function renderCreateDrawer(): Promise<void> {
   )
   queryClient.setQueryData(
     ['user-groups'],
-    {
-      success: true,
-      data: {
-        auto: { desc: 'Automatic routing', ratio: 'auto' },
-        default: { desc: 'Standard access', ratio: 1 },
-        vip: { desc: 'Priority access', ratio: 2 },
-      },
-    },
+    { success: true, data: groups },
     { updatedAt: freshAt }
   )
   queryClient.setQueryData(
@@ -132,11 +141,16 @@ async function renderCreateDrawer(): Promise<void> {
   )
   await waitFor(
     () => {
-      const saveButton = findButton('Save changes', false)
+      const saveButton = findButton('Create key', false)
       expect(saveButton).toBeEnabled()
     },
     { timeout: 1500 }
   )
+}
+
+// [user-ui] 分组、自动分组顺序、批量数量收在"高级"里（审计 2.5 K6）
+function openAdvanced(): void {
+  fireEvent.click(findButton('Advanced', true))
 }
 
 function findButton(text: string, required: true): HTMLButtonElement
@@ -151,7 +165,9 @@ function findButton(text: string, required = true): HTMLButtonElement | null {
   return button ?? null
 }
 
-function getControlByLabel(labelText: 'Name' | 'Quantity'): HTMLInputElement
+function getControlByLabel(
+  labelText: 'Name' | 'Number of keys'
+): HTMLInputElement
 function getControlByLabel(labelText: 'Group'): HTMLButtonElement
 function getControlByLabel(labelText: 'Auto group order'): HTMLElement
 function getControlByLabel(labelText: string): HTMLElement {
@@ -208,6 +224,7 @@ describe('API keys mutate drawer Auto group integration', () => {
     const createdPayloads: Array<Record<string, unknown>> = []
     installApiFixtures(createdPayloads)
     await renderCreateDrawer()
+    openAdvanced()
 
     const groupTrigger = getControlByLabel('Group')
     expect(groupTrigger.textContent?.includes('auto')).toBe(true)
@@ -224,8 +241,8 @@ describe('API keys mutate drawer Auto group integration', () => {
     expect(findButton('Restore global Auto', true).disabled).toBe(true)
 
     changeInput(getControlByLabel('Name'), 'batch')
-    changeInput(getControlByLabel('Quantity'), '2')
-    fireEvent.click(findButton('Save changes', true))
+    changeInput(getControlByLabel('Number of keys'), '2')
+    fireEvent.click(findButton('Create key', true))
     await waitFor(() => expect(createdPayloads).toHaveLength(2))
 
     expect(createdPayloads.length).toBe(2)
@@ -241,6 +258,7 @@ describe('API keys mutate drawer Auto group integration', () => {
     const createdPayloads: Array<Record<string, unknown>> = []
     installApiFixtures(createdPayloads)
     await renderCreateDrawer()
+    openAdvanced()
 
     const autoOrderControl = getControlByLabel('Auto group order')
     const addGroupTrigger = autoOrderControl.querySelector<HTMLButtonElement>(
@@ -273,8 +291,96 @@ describe('API keys mutate drawer Auto group integration', () => {
     expect(findButton('Restore global Auto', true).disabled).toBe(false)
 
     changeInput(getControlByLabel('Name'), 'custom')
-    fireEvent.click(findButton('Save changes', true))
+    fireEvent.click(findButton('Create key', true))
     await waitFor(() => expect(createdPayloads).toHaveLength(1))
     expect(createdPayloads[0]?.auto_groups).toEqual(['vip'])
+  })
+})
+
+// [user-ui] 表单分区（审计 2.5 K5/K6）
+function hasLabel(text: string): boolean {
+  return [...document.querySelectorAll('label')].some(
+    (label) => label.textContent?.trim() === text
+  )
+}
+
+describe('API keys mutate drawer layout', () => {
+  test('keeps group, limits and bulk quantity behind Advanced on the first screen', async () => {
+    installApiFixtures([])
+    await renderCreateDrawer()
+
+    expect(hasLabel('Name')).toBe(true)
+    expect(hasLabel('Expiration Time')).toBe(true)
+    expect(hasLabel('Set a spending cap')).toBe(true)
+    for (const label of ['Group', 'Number of keys', 'Model Limits']) {
+      expect(hasLabel(label)).toBe(false)
+    }
+
+    openAdvanced()
+    for (const label of ['Group', 'Number of keys', 'Model Limits']) {
+      expect(hasLabel(label)).toBe(true)
+    }
+  })
+
+  test('hides the group field when only one group is available', async () => {
+    installApiFixtures([])
+    await renderCreateDrawer({
+      default: { desc: 'Standard access', ratio: 1 },
+    })
+    openAdvanced()
+
+    expect(hasLabel('Model Limits')).toBe(true)
+    expect(hasLabel('Group')).toBe(false)
+  })
+
+  test('reopens Advanced when a field inside it fails validation', async () => {
+    const createdPayloads: Array<Record<string, unknown>> = []
+    installApiFixtures(createdPayloads)
+    await renderCreateDrawer()
+    openAdvanced()
+
+    const autoOrderControl = getControlByLabel('Auto group order')
+    const addGroupTrigger = autoOrderControl.querySelector<HTMLButtonElement>(
+      'button[role="combobox"]'
+    )
+    if (!addGroupTrigger) {
+      throw new Error('Expected Auto group order combobox')
+    }
+    selectComboboxOption(addGroupTrigger, 'Priority access')
+    fireEvent.click(screen.getByRole('button', { name: 'Remove vip' }))
+    changeInput(getControlByLabel('Name'), 'needs-a-group')
+
+    openAdvanced()
+    expect(hasLabel('Auto group order')).toBe(false)
+
+    fireEvent.click(findButton('Create key', true))
+    await waitFor(() => expect(hasLabel('Auto group order')).toBe(true))
+    expect(createdPayloads).toHaveLength(0)
+  })
+
+  test('sends a capped key only after the spending cap switch is turned on', async () => {
+    const createdPayloads: Array<Record<string, unknown>> = []
+    installApiFixtures(createdPayloads)
+    await renderCreateDrawer()
+
+    const capSwitch = screen.getByRole('switch', { name: 'Set a spending cap' })
+    expect(capSwitch).toHaveAttribute('aria-checked', 'false')
+    expect(
+      [...document.querySelectorAll('label')].some((label) =>
+        label.textContent?.startsWith('Spending cap')
+      )
+    ).toBe(false)
+
+    fireEvent.click(capSwitch)
+    const amountLabel = [...document.querySelectorAll('label')].find((label) =>
+      label.textContent?.startsWith('Spending cap')
+    )
+    expect(amountLabel).toBeDefined()
+
+    changeInput(getControlByLabel('Name'), 'capped')
+    fireEvent.click(findButton('Create key', true))
+    await waitFor(() => expect(createdPayloads).toHaveLength(1))
+    expect(createdPayloads[0]?.unlimited_quota).toBe(false)
+    expect(Number(createdPayloads[0]?.remain_quota)).toBeGreaterThan(0)
   })
 })

@@ -41,7 +41,13 @@ type ApiKeysContextType = {
   loadingKeys: Record<number, boolean>
   copiedKeyId: number | null
   markKeyCopied: (id: number) => void
+  // [user-ui] 刚创建的密钥名称，供"密钥已创建"对话框找回并展示（审计 2.5 K1）
+  createdBatch: CreatedKeysBatch | null
+  showCreatedKeys: (names: string[]) => void
 }
+
+// [user-ui] 一次创建操作产生的密钥名称；id 每次递增，保证重复创建同名密钥时重新查询
+export type CreatedKeysBatch = { id: number; names: string[] }
 
 const ApiKeysContext = React.createContext<ApiKeysContextType | null>(null)
 
@@ -58,6 +64,10 @@ export function ApiKeysProvider({ children }: { children: React.ReactNode }) {
 
   const [copiedKeyId, setCopiedKeyId] = useState<number | null>(null)
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  // [user-ui] 创建成功对话框的数据
+  const [createdBatch, setCreatedBatch] = useState<CreatedKeysBatch | null>(
+    null
+  )
 
   useEffect(() => {
     return () => clearTimeout(copiedTimerRef.current)
@@ -72,6 +82,15 @@ export function ApiKeysProvider({ children }: { children: React.ReactNode }) {
   const triggerRefresh = useCallback(() => {
     setRefreshTrigger((prev) => prev + 1)
   }, [])
+
+  // [user-ui] 打开"密钥已创建"对话框
+  const showCreatedKeys = useCallback(
+    (names: string[]) => {
+      setCreatedBatch((prev) => ({ id: (prev?.id ?? 0) + 1, names }))
+      setOpen('created')
+    },
+    [setOpen]
+  )
 
   const resolveRealKey = useCallback(
     async (id: number): Promise<string | null> => {
@@ -171,6 +190,8 @@ export function ApiKeysProvider({ children }: { children: React.ReactNode }) {
         loadingKeys,
         copiedKeyId,
         markKeyCopied,
+        createdBatch,
+        showCreatedKeys,
       }}
     >
       {children}
