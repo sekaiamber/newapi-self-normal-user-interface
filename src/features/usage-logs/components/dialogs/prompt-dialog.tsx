@@ -32,6 +32,7 @@ interface PromptDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
+// [user-ui] copy confirmation icon uses the success token (was green-600)
 export function PromptDialog({
   prompt,
   promptEn,
@@ -65,7 +66,7 @@ export function PromptDialog({
                 title={t('Copy to clipboard')}
               >
                 {copiedText === prompt ? (
-                  <Check className='size-4 text-green-600' />
+                  <Check className='text-success size-4' />
                 ) : (
                   <Copy className='size-4' />
                 )}
@@ -91,7 +92,7 @@ export function PromptDialog({
                   title={t('Copy to clipboard')}
                 >
                   {copiedText === promptEn ? (
-                    <Check className='size-4 text-green-600' />
+                    <Check className='text-success size-4' />
                   ) : (
                     <Copy className='size-4' />
                   )}

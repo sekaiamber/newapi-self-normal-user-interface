@@ -66,7 +66,8 @@ function TaskDetailsCell(props: {
           {t('View details')}
         </button>
         {props.log.fail_reason ? (
-          <span className='max-w-full truncate text-xs text-red-600 dark:text-red-400'>
+          // [user-ui] destructive token (was red palette classes)
+          <span className='text-destructive max-w-full truncate text-xs'>
             {props.log.fail_reason}
           </span>
         ) : null}
@@ -194,29 +195,42 @@ export function useTaskLogsColumns(
   columns.push(
     {
       accessorKey: 'task_id',
-      header: t('Task ID'),
+      // [user-ui] Lead with what the task is ("Text to Video · kling") and
+      // keep the ID as a copyable second line; the ID alone was the main
+      // information before (audit 2.7 T3).
+      header: t('logs.col.task'),
       cell: ({ row }) => {
         const log = row.original
         const taskId = row.getValue('task_id') as string
-        if (!taskId) {
-          return <span className='text-muted-foreground/60 text-xs'>-</span>
-        }
+        const actionLabel = t(
+          taskActionMapper.getLabel(log.action, log.action || 'Unknown')
+        )
         return (
-          <div className='flex max-w-[170px] flex-col gap-0.5'>
-            <StatusBadge
-              label={taskId}
-              copyText={taskId}
-              variant='neutral'
-              size='sm'
-              className='border-border/60 bg-muted/30 !text-foreground max-w-full truncate rounded-md border px-1.5 py-0.5 font-mono'
-            />
-            <span className='text-muted-foreground/60 truncate text-[11px]'>
-              {t(log.platform)} · {t(taskActionMapper.getLabel(log.action))}
+          <div className='flex max-w-[200px] flex-col gap-1'>
+            <span className='truncate text-xs font-medium'>
+              {actionLabel}
+              {log.platform ? (
+                <span className='text-muted-foreground font-normal'>
+                  {' · '}
+                  {t(log.platform)}
+                </span>
+              ) : null}
             </span>
+            {taskId ? (
+              <StatusBadge
+                label={taskId}
+                copyText={taskId}
+                variant='neutral'
+                size='sm'
+                className='border-border/60 bg-muted/30 !text-muted-foreground max-w-full truncate rounded-md border px-1.5 py-0.5 font-mono !text-[11px]'
+              />
+            ) : (
+              <span className='text-muted-foreground/60 text-xs'>-</span>
+            )}
           </div>
         )
       },
-      meta: { mobileTitle: true },
+      meta: { mobileTitle: true, label: t('logs.col.task') },
     },
     createDurationColumn<TaskLog>({
       submitTimeKey: 'submit_time',
@@ -244,7 +258,9 @@ export function useTaskLogsColumns(
     createProgressColumn<TaskLog>({ headerLabel: t('Progress') }),
     {
       id: 'artifacts',
-      header: t('Artifacts'),
+      // [user-ui] "制品" is engineering jargon → "结果" (audit 2.7 T3)
+      header: t('logs.col.result'),
+      meta: { label: t('logs.col.result') },
       cell: ({ row }) => (
         <TaskArtifactsCell key={row.original.task_id} log={row.original} />
       ),

@@ -35,16 +35,22 @@ import {
 } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import i18next from 'i18next'
-import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest'
 
 import zhTW from '@/i18n/locales/zh-TW.json'
 import zh from '@/i18n/locales/zh.json'
+import { overridesEn } from '@/i18n/overrides'
 import { api } from '@/lib/api'
 
 import { CommonLogsFilterBar } from '../common-logs-filter-bar'
 import { CompactDateTimeRangePicker } from '../compact-date-time-range-picker'
 import { LogsFilterToolbar } from '../logs-filter-toolbar'
 import { UsageLogsProvider } from '../usage-logs-provider'
+
+// [user-ui] SwarmRouter wording lives in the i18n override layer
+beforeAll(() => {
+  i18next.addResourceBundle('en', 'translation', overridesEn, true, true)
+})
 
 const captureDescriptor = Object.getOwnPropertyDescriptor(
   HTMLElement.prototype,
@@ -127,7 +133,10 @@ afterEach(async () => {
 it('applies the selected mobile date range directly and resets pagination while retaining filters', async () => {
   const router = await renderMobileFilter()
   const user = userEvent.setup()
-  await user.click(screen.getByRole('button', { name: /^\d{4}-\d{2}/ }))
+  // [user-ui] the default range is named on the trigger ("Last 7 days")
+  await user.click(
+    screen.getByRole('button', { name: /^Last 7 days \(\d{4}-\d{2}/ })
+  )
   fireEvent.change(screen.getByLabelText('Start Time'), {
     target: { value: '2026-09-07T09:30' },
   })
@@ -170,20 +179,34 @@ it('applies mobile drawer filters only when Search is pressed', async () => {
   )
 })
 
+// [user-ui] SwarmRouter: the unlabeled eye icon became a labelled switch in
+// the filter drawer, so the quick actions are Filter, Search and View.
 it('keeps all quick actions visible without opening a menu', async () => {
   await renderMobileFilter()
   const user = userEvent.setup()
-  for (const name of ['Hide', 'Filter', 'Search', 'View']) {
+  for (const name of ['Filter', 'Search', 'View']) {
     expect(screen.getByRole('button', { name })).toBeVisible()
   }
   expect(screen.queryByRole('button', { name: 'More' })).not.toBeInTheDocument()
-  await user.click(screen.getByRole('button', { name: 'Hide' }))
-  expect(screen.getByRole('button', { name: 'Show' })).toBeVisible()
-  screen.getByRole('button', { name: 'Show' }).focus()
-  for (const name of ['Filter', 'Search', 'View']) {
+  expect(screen.queryByRole('button', { name: 'Hide' })).not.toBeInTheDocument()
+  screen.getByRole('button', { name: 'Filter' }).focus()
+  for (const name of ['Search', 'View']) {
     await user.tab()
     expect(screen.getByRole('button', { name })).toHaveFocus()
   }
+})
+
+it('offers the sensitive-info switch inside the mobile filter drawer', async () => {
+  await renderMobileFilter()
+  const user = userEvent.setup()
+  await user.click(screen.getByRole('button', { name: 'Filter' }))
+  const dialog = await screen.findByRole('dialog', { name: 'Filter' })
+  const toggle = within(dialog).getByRole('switch', {
+    name: 'Hide sensitive info (for screenshots)',
+  })
+  expect(toggle).toHaveAttribute('aria-checked', 'false')
+  await user.click(toggle)
+  expect(toggle).toHaveAttribute('aria-checked', 'true')
 })
 
 function LoadingFixture(props: { loading: boolean; onSearch: () => void }) {
@@ -232,18 +255,18 @@ it('collapses only date and statistics while keeping the right-hand quick action
   const user = userEvent.setup()
   const date =
     screen
-      .getByRole('button', { name: /^\d{4}-\d{2}/ })
+      .getByRole('button', { name: /^Last 7 days/ })
       .getAttribute('aria-label') ?? ''
-  expect(await screen.findByText('Usage')).toBeVisible()
+  expect(await screen.findByText('Spent')).toBeVisible()
   await user.click(screen.getByRole('button', { name: 'Collapse' }))
   expect(screen.getByRole('button', { name: 'Expand' })).toHaveAttribute(
     'aria-expanded',
     'false'
   )
   expect(screen.queryByRole('button', { name: date })).not.toBeInTheDocument()
-  expect(screen.queryByText('Usage')).not.toBeInTheDocument()
+  expect(screen.queryByText('Spent')).not.toBeInTheDocument()
   const actions = screen.getByRole('group', { name: 'Actions' })
-  for (const name of ['Hide', 'Filter', 'Search', 'View']) {
+  for (const name of ['Filter', 'Search', 'View']) {
     expect(within(actions).getByRole('button', { name })).toBeVisible()
   }
   expect(
@@ -255,7 +278,7 @@ it('collapses only date and statistics while keeping the right-hand quick action
     'true'
   )
   expect(screen.getByRole('button', { name: date })).toBeVisible()
-  expect(await screen.findByText('Usage')).toBeVisible()
+  expect(await screen.findByText('Spent')).toBeVisible()
 })
 
 it.each([

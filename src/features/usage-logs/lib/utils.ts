@@ -75,13 +75,24 @@ export function isPerCallBilling(modelPrice?: number): boolean {
 }
 
 /**
- * Get default time range (today 00:00:00 to now + 1 hour)
+ * [user-ui] Number of calendar days (including today) covered by the default
+ * time range. Upstream defaulted to "today 00:00 → now + 1h", which shows an
+ * empty table every morning (audit 2.6 L7); we default to the last 7 days.
+ */
+export const DEFAULT_TIME_RANGE_DAYS = 7
+
+/**
+ * Get default time range.
+ * [user-ui] Last 7 days: 00:00 six days ago → 23:59:59.999 today, identical to
+ * the "7 Days" preset of the range picker so the trigger can name it.
  */
 export function getDefaultTimeRange(): { start: Date; end: Date } {
   const now = new Date()
   const start = new Date(now)
+  start.setDate(start.getDate() - (DEFAULT_TIME_RANGE_DAYS - 1))
   start.setHours(0, 0, 0, 0)
-  const end = new Date(now.getTime() + 3600 * 1000) // +1 hour
+  const end = new Date(now)
+  end.setHours(23, 59, 59, 999)
 
   return { start, end }
 }

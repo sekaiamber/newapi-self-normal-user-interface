@@ -28,6 +28,7 @@ import { I18nextProvider } from 'react-i18next'
 import { afterAll, afterEach, beforeEach, expect, test, vi } from 'vitest'
 
 import en from '@/i18n/locales/en.json'
+import { overridesEn, withOverrides } from '@/i18n/overrides'
 import {
   DEFAULT_CURRENCY_CONFIG,
   useSystemConfigStore,
@@ -47,7 +48,10 @@ vi.hoisted(() => {
 })
 afterAll(() => vi.unstubAllGlobals())
 
-function makeLog(other: LogOtherData): UsageLog {
+function makeLog(
+  other: LogOtherData,
+  overrides: Partial<UsageLog> = {}
+): UsageLog {
   return {
     id: 1,
     user_id: 1,
@@ -70,12 +74,17 @@ function makeLog(other: LogOtherData): UsageLog {
     other: JSON.stringify(other),
     request_id: 'req-1',
     upstream_request_id: '',
+    ...overrides,
   }
 }
 
-function DetailPreview(props: { other: LogOtherData; isAdmin: boolean }) {
+function DetailPreview(props: {
+  other: LogOtherData
+  isAdmin: boolean
+  log?: Partial<UsageLog>
+}) {
   const table = useReactTable({
-    data: [makeLog(props.other)],
+    data: [makeLog(props.other, props.log)],
     columns: useCommonLogsColumns(props.isAdmin, false),
     getCoreRowModel: getCoreRowModel(),
   })
@@ -98,7 +107,8 @@ const i18n = createInstance()
 beforeEach(async () => {
   await i18n.init({
     lng: 'en',
-    resources: { en },
+    // [user-ui] include the SwarmRouter overrides (user-facing billing wording)
+    resources: { en: withOverrides(en, overridesEn) },
     interpolation: { escapeValue: false },
   })
   useSystemConfigStore
@@ -116,11 +126,15 @@ afterEach(() => {
   client.clear()
   useSystemConfigStore.getState().setConfig(previousConfig)
 })
-function renderPreview(other: LogOtherData, isAdmin = true) {
+function renderPreview(
+  other: LogOtherData,
+  isAdmin = true,
+  log: Partial<UsageLog> = {}
+) {
   render(
     <I18nextProvider i18n={i18n}>
       <QueryClientProvider client={client}>
-        <DetailPreview other={other} isAdmin={isAdmin} />
+        <DetailPreview other={other} isAdmin={isAdmin} log={log} />
       </QueryClientProvider>
     </I18nextProvider>
   )
@@ -155,17 +169,17 @@ test.each([
   {
     name: 'per-call',
     other: { model_price: 0.25 },
-    expected: 'Per-call · $0.25',
+    expected: 'Per request $0.25',
   },
   {
     name: 'standard',
     other: { model_ratio: 1, completion_ratio: 2 },
-    expected: 'Standard · $2 / $4/M',
+    expected: 'In $2 · Out $4 per 1M tokens',
   },
   {
     name: 'zero price fallback',
     other: { model_price: 0, group_ratio: 1 },
-    expected: 'Group Ratio 1x',
+    expected: 'Price factor ×1',
   },
   { name: 'missing price fallback', other: {}, expected: '—' },
 ])('$name stays visible without a plugin counter', ({ other, expected }) => {
@@ -199,7 +213,7 @@ test.each([true, false])(
       { model_price: 0.25, admin_info: { task_plugin: plugin } },
       isAdmin
     )
-    expect(preview.textContent).toBe('Per-call · $0.25')
+    expect(preview.textContent).toBe('Per request $0.25')
     fireEvent.click(preview)
     const dialog = within(await screen.findByRole('dialog'))
     if (isAdmin) {
@@ -364,3 +378,55 @@ test.each(['missing schema', 'unsupported expression', 'unknown tier'])(
     expect(preview.textContent).toBe('Dynamic Pricing · No matching results')
   }
 )
+
+// [user-ui] SwarmRouter: a price factor other than 1 stays visible in the
+// user-facing price summary instead of the admin "group ratio" wording.
+test.each([
+  {
+    other: { model_ratio: 1, completion_ratio: 2, group_ratio: 1.5 },
+    factor: '1.5',
+  },
+  {
+    other: { model_ratio: 1, completion_ratio: 2, user_group_ratio: 0.8 },
+    factor: '0.8',
+  },
+])(
+  'a price factor of $factor is appended to the unit prices',
+  ({ other, factor }) => {
+    const preview = renderPreview(other, false)
+    expect(preview.textContent).toBe(
+      `In $2 · Out $4 per 1M tokens · price ×${factor}`
+    )
+  }
+)
+
+test('a price factor of 1 is not repeated next to the unit prices', () => {
+  const preview = renderPreview(
+    { model_ratio: 1, completion_ratio: 2, group_ratio: 1 },
+    false
+  )
+  expect(preview.textContent).toBe('In $2 · Out $4 per 1M tokens')
+})
+
+test('an error record shows its message in the error color', () => {
+  const preview = renderPreview({}, false, {
+    type: 5,
+    content: 'upstream timeout',
+  })
+  expect(within(preview).getByText('upstream timeout')).toHaveClass(
+    'text-destructive'
+  )
+})
+
+test('a token-priced expression tier shows plain input and output prices', () => {
+  const preview = renderPreview(
+    {
+      billing_mode: 'tiered_expr',
+      expr_b64: btoa('tier("base", p * 2 + c * 10)'),
+      matched_tier: 'base',
+      group_ratio: 2,
+    },
+    false
+  )
+  expect(preview.textContent).toBe('In $2 · Out $10 per 1M tokens · price ×2')
+})

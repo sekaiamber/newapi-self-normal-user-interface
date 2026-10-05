@@ -52,7 +52,7 @@ import { formatBillingCurrencyFromUSD } from '@/lib/currency'
 import { formatLogQuota, formatTimestampToDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
-import { LOG_TYPE_ALL_VALUE } from '../../constants'
+import { LOG_TYPE_ALL_VALUE, LOG_TYPE_ENUM } from '../../constants'
 import type { UsageLog } from '../../data/schema'
 import {
   formatModelName,
@@ -178,6 +178,17 @@ function buildTypeDetailSegments(
   }
   const isTieredExpr = other.billing_mode === 'tiered_expr'
   const tieredSummary = getTieredBillingSummary(other)
+  // [user-ui] User-facing wording (audit 2.6 L4): "Standard · $2 / $4/M" and
+  // "base · $2 / $10/M" became "In $2 · Out $4 per 1M tokens" (the matched
+  // tier stays in the details dialog), "Per-call" became "Per request", and a
+  // group ratio other than 1 is appended as "price ×1.5" (cost = base price ×
+  // ratio: guide/console/settings/rate-settings.md "Quota Calculation
+  // Formulas"; expression prices too: plugins/billing.md).
+  const priceFactor = getGroupRatio(other)
+  const factorSuffix =
+    priceFactor != null && priceFactor !== 1
+      ? ` · ${t('logs.detail.priceTimes', { value: formatRatioCompact(priceFactor) })}`
+      : ''
   if (isTieredExpr && other.is_task) {
     const tiers = parseTaskTiersFromExpr(
       decodeBillingExprB64(other.expr_b64),
@@ -213,13 +224,33 @@ function buildTypeDetailSegments(
     }
   } else if (isTieredExpr) {
     if (tieredSummary) {
-      const baseEntries = tieredSummary.priceEntries
-        .filter((entry) => ['inputPrice', 'outputPrice'].includes(entry.field))
-        .map((entry) => formatPriceCompact(entry.price))
-      if (baseEntries.length > 0) {
-        const tierLabel = tieredSummary.tier.label || t('Default')
+      const inputEntry = tieredSummary.priceEntries.find(
+        (entry) => entry.field === 'inputPrice'
+      )
+      const outputEntry = tieredSummary.priceEntries.find(
+        (entry) => entry.field === 'outputPrice'
+      )
+      if (inputEntry && outputEntry) {
         segments.push({
-          text: `${tierLabel} · ${formatPriceList(baseEntries, true)}`,
+          text:
+            t('logs.detail.tokenPrices', {
+              input: formatPriceCompact(inputEntry.price),
+              output: formatPriceCompact(outputEntry.price),
+            }) + factorSuffix,
+        })
+      } else if (inputEntry) {
+        segments.push({
+          text:
+            t('logs.detail.inputPrice', {
+              input: formatPriceCompact(inputEntry.price),
+            }) + factorSuffix,
+        })
+      } else if (outputEntry) {
+        segments.push({
+          text:
+            t('logs.detail.outputPrice', {
+              output: formatPriceCompact(outputEntry.price),
+            }) + factorSuffix,
         })
       }
 
@@ -272,18 +303,24 @@ function buildTypeDetailSegments(
     const isPerCall = isPerCallBilling(modelPrice)
     if (isPerCall && modelPrice != null) {
       segments.push({
-        text: `${t('Per-call')} · ${formatBillingCurrencyFromUSD(modelPrice, priceOpts)}`,
+        text:
+          t('logs.detail.perRequest', {
+            price: formatBillingCurrencyFromUSD(modelPrice, priceOpts),
+          }) + factorSuffix,
       })
     } else if (other.model_ratio != null) {
       const inputPriceUSD = other.model_ratio * 2.0
-      const baseEntries = [formatPriceCompact(inputPriceUSD)]
-      if (other.completion_ratio != null) {
-        baseEntries.push(
-          formatPriceCompact(inputPriceUSD * other.completion_ratio)
-        )
-      }
+      const input = formatPriceCompact(inputPriceUSD)
       segments.push({
-        text: `${t('Standard')} · ${formatPriceList(baseEntries, true)}`,
+        text:
+          (other.completion_ratio != null
+            ? t('logs.detail.tokenPrices', {
+                input,
+                output: formatPriceCompact(
+                  inputPriceUSD * other.completion_ratio
+                ),
+              })
+            : t('logs.detail.inputPrice', { input })) + factorSuffix,
       })
 
       if (hasAnyCacheTokens(other)) {
@@ -315,13 +352,14 @@ function buildTypeDetailSegments(
         Number.isFinite(userGroupRatio) &&
         userGroupRatio !== -1
       const effectiveRatio = isUserGroup ? userGroupRatio : groupRatio
-      const ratioLabel = isUserGroup
-        ? t('User Exclusive Ratio')
-        : t('Group Ratio')
 
+      // [user-ui] "Group Ratio 1x" / "User Exclusive Ratio" → "Price factor
+      // ×1"; which ratio applied stays visible in the details dialog.
       if (effectiveRatio != null && Number.isFinite(effectiveRatio)) {
         segments.push({
-          text: `${ratioLabel} ${formatRatioCompact(effectiveRatio)}x`,
+          text: t('logs.detail.priceFactor', {
+            value: formatRatioCompact(effectiveRatio),
+          }),
         })
       }
     }
@@ -376,6 +414,8 @@ export function useCommonLogsColumns(
     },
   ]
 
+  // [user-ui] admin-only columns: only the amber icon colors became the
+  // semantic text-warning token.
   if (isAdmin) {
     columns.push(
       {
@@ -451,7 +491,7 @@ export function useCommonLogsColumns(
                           }
                         >
                           <GitBranch
-                            className='size-3.5 text-amber-500'
+                            className='text-warning size-3.5'
                             aria-hidden='true'
                           />
                         </PopoverTrigger>
@@ -472,7 +512,7 @@ export function useCommonLogsColumns(
                     {affinity && (
                       <button
                         type='button'
-                        className='absolute -top-1 -right-1 leading-none text-amber-500'
+                        className='text-warning absolute -top-1 -right-1 leading-none'
                         onClick={(e) => {
                           e.stopPropagation()
                           setAffinityTarget({
@@ -594,7 +634,11 @@ export function useCommonLogsColumns(
 
   columns.push({
     accessorKey: 'token_name',
-    header: t('Token'),
+    // [user-ui] "令牌" next to "Token" was confusing (audit 2.6 L2): this is the API
+    // key name. The group + ratio sub-line ("default 1x") is admin billing
+    // jargon (L4) and only stays in the admin view; users see both in details.
+    header: t('logs.col.key'),
+    meta: { label: t('logs.col.key') },
     cell: function TokenNameCell({ row }) {
       const { sensitiveVisible } = useUsageLogsContext()
       const log = row.original
@@ -620,7 +664,7 @@ export function useCommonLogsColumns(
                   copyText={sensitiveVisible ? tokenName : undefined}
                   size='sm'
                   showDot={false}
-                  className='border-border/60 bg-muted/30 text-foreground h-6 max-w-full gap-1.5 overflow-hidden rounded-md border px-2 py-0.5 [font-family:var(--font-body)]'
+                  className='border-border/60 bg-muted/30 text-foreground h-6 max-w-full gap-1.5 overflow-hidden rounded-md border px-2 py-0.5'
                 />
               </TooltipTrigger>
               {sensitiveVisible && tokenName.length > 16 && (
@@ -630,7 +674,7 @@ export function useCommonLogsColumns(
               )}
             </Tooltip>
           </TooltipProvider>
-          {(group || groupRatio != null) && (
+          {isAdmin && (group || groupRatio != null) && (
             <span className='block max-w-full truncate text-xs leading-none'>
               {group ? (
                 <GroupBadge
@@ -677,7 +721,8 @@ export function useCommonLogsColumns(
     },
     {
       accessorKey: 'is_stream',
-      header: t('Stream'),
+      // [user-ui] "流" → "流式"; hidden by default (usage-logs-table.tsx)
+      header: t('logs.col.stream'),
       cell: ({ row }) => {
         const log = row.original
         if (!isTimingLogType(log.type)) return null
@@ -698,11 +743,13 @@ export function useCommonLogsColumns(
           />
         )
       },
-      meta: { label: t('Stream') },
+      meta: { label: t('logs.col.stream') },
     },
     {
       accessorKey: 'prompt_tokens',
-      header: 'Tokens',
+      // [user-ui] Untranslated literal 'Tokens' → "Input / output tokens" (L2)
+      header: t('logs.col.tokens'),
+      meta: { label: t('logs.col.tokens') },
       cell: ({ row }) => {
         const log = row.original
         if (!isDisplayableLogType(log.type)) return null
@@ -730,15 +777,19 @@ export function useCommonLogsColumns(
               {completionTokens.toLocaleString()}
             </span>
             {(cacheReadTokens > 0 || cacheWriteTokens > 0) && (
-              <div className='flex items-center gap-1 text-[11px]'>
+              <div className='flex items-center gap-2 text-[11px]'>
                 {cacheReadTokens > 0 && (
                   <span className='text-muted-foreground/60'>
-                    {t('Cache')}↓ {cacheReadTokens.toLocaleString()}
+                    {t('logs.tokens.cacheRead', {
+                      value: cacheReadTokens.toLocaleString(),
+                    })}
                   </span>
                 )}
                 {cacheWriteTokens > 0 && (
                   <span className='text-muted-foreground/60'>
-                    ↑ {cacheWriteTokens.toLocaleString()}
+                    {t('logs.tokens.cacheWrite', {
+                      value: cacheWriteTokens.toLocaleString(),
+                    })}
                   </span>
                 )}
               </div>
@@ -762,7 +813,9 @@ export function useCommonLogsColumns(
 
     {
       accessorKey: 'use_time',
+      // [user-ui] hidden by default (usage-logs-table.tsx); also in details
       header: t('Timing'),
+      meta: { label: t('Timing') },
       cell: ({ row }) => {
         const log = row.original
         if (!isTimingLogType(log.type)) return null
@@ -815,7 +868,8 @@ export function useCommonLogsColumns(
         if (primary?.muted) {
           primaryTextClass = 'text-muted-foreground/60'
         } else if (primary?.danger) {
-          primaryTextClass = 'text-red-600 dark:text-red-400'
+          // [user-ui] semantic token instead of palette classes
+          primaryTextClass = 'text-destructive'
         }
         let detailPreview = <span className='text-muted-foreground/40'>—</span>
         if (primary) {
@@ -835,8 +889,17 @@ export function useCommonLogsColumns(
             </span>
           )
         } else if (log.content) {
+          // [user-ui] An error record's message is the reason the call failed;
+          // show it in the error color instead of muted grey.
           detailPreview = (
-            <span className='text-muted-foreground truncate group-hover:underline'>
+            <span
+              className={cn(
+                'truncate group-hover:underline',
+                log.type === LOG_TYPE_ENUM.ERROR
+                  ? 'text-destructive'
+                  : 'text-muted-foreground'
+              )}
+            >
               {log.content}
             </span>
           )

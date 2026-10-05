@@ -54,7 +54,7 @@ function ToolSurchargeMarker() {
         render={
           <Badge
             variant='warning'
-            className='h-5 min-w-5 cursor-help gap-0 rounded-full px-1'
+            className='h-5 min-w-5 cursor-help gap-0 px-1'
             role='img'
             aria-label={label}
             tabIndex={0}
@@ -79,11 +79,13 @@ function ToolSurchargeMarker() {
   )
 }
 
+// [user-ui] Brand style: amounts in font-mono + tabular-nums; the surcharge
+// marker uses the default small radius instead of a pill.
 function QuotaBadge(props: { quota: number }) {
   const quotaDisplay = splitQuotaDisplay(formatLogQuota(props.quota))
 
   return (
-    <span className='border-border/80 bg-muted/60 inline-flex h-6 w-fit items-center rounded-md border px-2 [font-family:var(--font-body)] text-sm leading-none font-semibold tabular-nums'>
+    <span className='border-border/80 bg-muted/60 inline-flex h-6 w-fit items-center rounded-md border px-2 font-mono text-sm leading-none font-semibold tabular-nums'>
       {quotaDisplay.prefix ? (
         <span className='mr-1'>{quotaDisplay.prefix}</span>
       ) : null}

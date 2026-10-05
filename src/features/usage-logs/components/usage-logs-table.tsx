@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
-import type { ColumnDef } from '@tanstack/react-table'
+import type { ColumnDef, VisibilityState } from '@tanstack/react-table'
 import { useTranslation } from 'react-i18next'
 
 import {
@@ -42,19 +42,31 @@ import { fetchLogsByCategory } from '../lib/utils'
 import type { LogCategory } from '../types'
 import { CommonLogsFilterBar } from './common-logs-filter-bar'
 import { TaskLogsFilterBar } from './task-logs-filter-bar'
+import { useUsageLogsEmptyState } from './usage-logs-empty'
 import { UsageLogsMobileList } from './usage-logs-mobile-card'
 import { useLogsViewScope, type LogsViewAccess } from './usage-logs-provider'
 
 const route = getRouteApi('/_authenticated/usage-logs/$section')
 
+// [user-ui] Row tints use semantic tokens instead of rose/blue/amber palette
+// classes (design-system.md).
 const logTypeRowTint: Record<number, string> = {
-  [LOG_TYPE_ENUM.ERROR]: 'bg-rose-50/40 dark:bg-rose-950/20',
-  [LOG_TYPE_ENUM.REFUND]: 'bg-blue-50/30 dark:bg-blue-950/15',
+  [LOG_TYPE_ENUM.ERROR]: 'bg-destructive/5',
+  [LOG_TYPE_ENUM.REFUND]: 'bg-info/5',
 }
 
 // Warning tint for logs where a quota conversion saturated (admin-only marker).
 // Takes precedence over the per-type tint since it flags a billing anomaly.
-const quotaSaturationRowTint = 'bg-amber-50/60 dark:bg-amber-950/25'
+const quotaSaturationRowTint = 'bg-warning/10'
+
+// [user-ui] Fewer default columns (audit 2.6 L3): streaming and timing are
+// hidden until the user turns them on in "View"; both stay in the details
+// dialog. Stored per-user column choices still win (useDataTable).
+const COMMON_DEFAULT_HIDDEN_COLUMNS: VisibilityState = {
+  is_stream: false,
+  use_time: false,
+}
+const NO_HIDDEN_COLUMNS: VisibilityState = {}
 
 function getColumnVisibilityStorageKey(
   logCategory: LogCategory,
@@ -96,7 +108,8 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
   } = useTableUrlState({
     search: route.useSearch(),
     navigate: route.useNavigate(),
-    pagination: { defaultPage: 1, defaultPageSize: isMobile ? 20 : 100 },
+    // [user-ui] 50 rows per page on desktop (was 100; audit 2.6 L3)
+    pagination: { defaultPage: 1, defaultPageSize: isMobile ? 20 : 50 },
     globalFilter: { enabled: false },
     columnFilters: [
       {
@@ -171,6 +184,10 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
     data: logs as Record<string, unknown>[],
     columns: columns as ColumnDef<Record<string, unknown>>[],
     columnFilters,
+    initialColumnVisibility:
+      logCategory === 'common'
+        ? COMMON_DEFAULT_HIDDEN_COLUMNS
+        : NO_HIDDEN_COLUMNS,
     columnVisibilityStorageKey: getColumnVisibilityStorageKey(
       logCategory,
       viewAccess
@@ -186,6 +203,7 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
   })
 
   const isCommon = logCategory === 'common'
+  const emptyState = useUsageLogsEmptyState(logCategory)
 
   return (
     <DataTablePage
@@ -194,10 +212,10 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
       columns={columns as ColumnDef<Record<string, unknown>>[]}
       isLoading={isLoadingData}
       isFetching={isFetching}
-      emptyTitle={t('No Logs Found')}
-      emptyDescription={t(
-        'No usage logs available. Logs will appear here once API calls are made.'
-      )}
+      // [user-ui] Empty state depends on the page and on the filters (L7, T4)
+      emptyTitle={emptyState.title}
+      emptyDescription={emptyState.description}
+      emptyAction={emptyState.action}
       skeletonKeyPrefix='usage-log-skeleton'
       applyHeaderSize
       tableClassName={cn(
@@ -208,6 +226,9 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
           table={table}
           isLoading={isLoadingData}
           logCategory={logCategory}
+          emptyTitle={emptyState.title}
+          emptyDescription={emptyState.description}
+          emptyAction={emptyState.action}
         />
       }
       toolbar={

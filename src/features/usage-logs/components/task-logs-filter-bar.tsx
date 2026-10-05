@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useQueryClient, useIsFetching } from '@tanstack/react-query'
 import { useNavigate, getRouteApi } from '@tanstack/react-router'
-import { type Table } from '@tanstack/react-table'
+import type { Table } from '@tanstack/react-table' // [user-ui] type-only import (oxlint)
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -115,18 +115,22 @@ export function TaskLogsFilterBar<TData>(props: TaskLogsFilterBarProps<TData>) {
     []
   )
 
-  const handleApply = useCallback(() => {
-    const filterParams = buildSearchParams(filters, props.logCategory)
-    navigate({
-      to: '/usage-logs/$section',
-      params: { section: props.logCategory },
-      search: {
-        ...filterParams,
-        page: 1,
-      },
-    })
-    queryClient.invalidateQueries({ queryKey: ['logs'] })
-  }, [filters, navigate, props.logCategory, queryClient])
+  // [user-ui] optional filters argument so a picked date range applies at once
+  const handleApply = useCallback(
+    (nextFilters: TaskLogsFilters = filters) => {
+      const filterParams = buildSearchParams(nextFilters, props.logCategory)
+      navigate({
+        to: '/usage-logs/$section',
+        params: { section: props.logCategory },
+        search: {
+          ...filterParams,
+          page: 1,
+        },
+      })
+      queryClient.invalidateQueries({ queryKey: ['logs'] })
+    },
+    [filters, navigate, props.logCategory, queryClient]
+  )
 
   const handleReset = useCallback(() => {
     const { start, end } = getDefaultTimeRange()
@@ -160,19 +164,21 @@ export function TaskLogsFilterBar<TData>(props: TaskLogsFilterBarProps<TData>) {
   )
 
   const filterValue = getFilterValue(filters, props.logCategory)
-  const placeholder =
-    props.logCategory === 'drawing'
-      ? t('Filter by MjProxy task ID')
-      : t('Filter by task ID')
+  // [user-ui] "MjProxy" is an implementation detail (audit 2.7 T2)
+  const placeholder = t('logs.filter.taskId')
   const hasAdditionalFilters = !!filterValue || !!filters.channel
   const dateRangeFilter = (
     <LogsFilterField wide>
       <CompactDateTimeRangePicker
+        namePresets
         start={filters.startTime}
         end={filters.endTime}
         onChange={({ start, end }) => {
+          // [user-ui] apply the picked range right away (it has its own
+          // Confirm/preset buttons), like the call log page
           handleChange('startTime', start)
           handleChange('endTime', end)
+          handleApply({ ...filters, startTime: start, endTime: end })
         }}
       />
     </LogsFilterField>
@@ -218,7 +224,7 @@ export function TaskLogsFilterBar<TData>(props: TaskLogsFilterBarProps<TData>) {
       }
       mobileFilterCount={[filterValue, filters.channel].filter(Boolean).length}
       hasActiveFilters={hasAdditionalFilters}
-      onSearch={handleApply}
+      onSearch={() => handleApply()}
       searchLoading={fetchingLogs > 0}
       onReset={handleReset}
     />

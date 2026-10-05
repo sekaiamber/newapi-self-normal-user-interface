@@ -33,13 +33,22 @@ import {
   within,
 } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, expect, it, vi } from 'vitest'
+import i18next from 'i18next'
+import { afterEach, beforeAll, expect, it, vi } from 'vitest'
 
+import { overridesEn } from '@/i18n/overrides'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth-store'
 
 import { CommonLogsFilterBar } from '../common-logs-filter-bar'
 import { UsageLogsProvider } from '../usage-logs-provider'
+
+// [user-ui] SwarmRouter wording lives in the i18n override layer
+// (the user-facing word for backend groups is the override key logs.group.label)
+const GROUP_LABEL = overridesEn['logs.group.label']
+beforeAll(() => {
+  i18next.addResourceBundle('en', 'translation', overridesEn, true, true)
+})
 
 const pointerCaptureDescriptor = Object.getOwnPropertyDescriptor(
   HTMLElement.prototype,
@@ -64,7 +73,8 @@ async function renderFilter(
   groups: Record<string, { desc: string; ratio: number }> | null = {
     default: { desc: '', ratio: 1 },
     premium: { desc: '', ratio: 2 },
-  }
+  },
+  expectGroupFilter = true
 ) {
   vi.spyOn(api, 'get').mockImplementation(async (url) => {
     if (url === '/api/user/self/groups' || url === '/api/group/') {
@@ -102,8 +112,15 @@ async function renderFilter(
     await userEvent.click(
       await screen.findByRole('button', { name: /^Filter/ })
     )
+  } else {
+    // [user-ui] the group filter lives under "More filters" on desktop
+    await userEvent.click(
+      await screen.findByRole('button', { name: /^More filters/ })
+    )
   }
-  await screen.findByRole('combobox', { name: 'Group' })
+  if (expectGroupFilter) {
+    await screen.findByRole('combobox', { name: GROUP_LABEL })
+  }
   return router
 }
 
@@ -124,7 +141,7 @@ afterEach(() => {
 
 it('loads personal groups and filters choices without submitting until Search', async () => {
   const router = await renderFilter()
-  const input = screen.getByRole('combobox', { name: 'Group' })
+  const input = screen.getByRole('combobox', { name: GROUP_LABEL })
   await userEvent.click(input)
   expect(await screen.findByRole('option', { name: 'default' })).toBeVisible()
   await userEvent.type(input, 'prem')
@@ -148,7 +165,7 @@ it('loads personal groups and filters choices without submitting until Search', 
 it('loads all groups in the administrator view', async () => {
   useAuthStore.getState().auth.setUser({ id: 1, username: 'admin', role: 10 })
   await renderFilter()
-  await userEvent.click(screen.getByRole('combobox', { name: 'Group' }))
+  await userEvent.click(screen.getByRole('combobox', { name: GROUP_LABEL }))
   expect(await screen.findByRole('option', { name: 'premium' })).toBeVisible()
   expect(api.get).toHaveBeenCalledWith('/api/group/')
   expect(api.get).not.toHaveBeenCalledWith('/api/user/self/groups')
@@ -156,7 +173,7 @@ it('loads all groups in the administrator view', async () => {
 
 it('confirms a keyboard choice before Enter submits the selected group', async () => {
   const router = await renderFilter()
-  const input = screen.getByRole('combobox', { name: 'Group' })
+  const input = screen.getByRole('combobox', { name: GROUP_LABEL })
   await userEvent.click(input)
   await screen.findByRole('option', { name: 'default' })
   await userEvent.keyboard('{ArrowDown}{Enter}')
@@ -176,7 +193,7 @@ it.each([{}, null])(
       '/usage-logs/common?group=retired',
       groups
     )
-    const input = screen.getByRole('combobox', { name: 'Group' })
+    const input = screen.getByRole('combobox', { name: GROUP_LABEL })
     expect(input).toHaveValue('retired')
     await userEvent.clear(input)
     await userEvent.type(input, 'historical')
@@ -196,7 +213,7 @@ it.each([{}, null])(
 
 it('resets the selected group and restores a group from URL navigation', async () => {
   const router = await renderFilter('/usage-logs/common?group=premium')
-  const input = screen.getByRole('combobox', { name: 'Group' })
+  const input = screen.getByRole('combobox', { name: GROUP_LABEL })
   expect(input).toHaveValue('premium')
   await userEvent.click(screen.getByRole('button', { name: 'Reset' }))
   await waitFor(() => expect(input).toHaveValue(''))
@@ -207,7 +224,7 @@ it('resets the selected group and restores a group from URL navigation', async (
 
 it('keeps a selected group visible on focus and can clear it without choosing another option', async () => {
   const router = await renderFilter('/usage-logs/common?group=premium')
-  const input = screen.getByRole('combobox', { name: 'Group' })
+  const input = screen.getByRole('combobox', { name: GROUP_LABEL })
   await userEvent.click(input)
   expect(input).toHaveValue('premium')
   expect(await screen.findByRole('option', { name: 'default' })).toBeVisible()
@@ -220,9 +237,13 @@ it('keeps a selected group visible on focus and can clear it without choosing an
 
 it('keeps the compact input and masks the dropdown together with other sensitive filters', async () => {
   await renderFilter()
-  const input = screen.getByRole('combobox', { name: 'Group' })
+  const input = screen.getByRole('combobox', { name: GROUP_LABEL })
   expect(input).toHaveClass('h-8', 'text-sm', 'leading-5')
-  await userEvent.click(screen.getByRole('button', { name: /^Hide$/ }))
+  await userEvent.click(
+    screen.getByRole('switch', {
+      name: 'Hide sensitive info (for screenshots)',
+    })
+  )
   await userEvent.click(input)
   const option = await screen.findByRole('option', { name: 'premium' })
   const maskedField = input.closest('.\\[-webkit-text-security\\:disc\\]')
@@ -247,9 +268,10 @@ it('lets mobile users select a long group name inside the filter drawer and subm
   const longGroup = 'enterprise-team-with-a-long-group-name'
   const router = await renderFilter('/usage-logs/common', {
     [longGroup]: { desc: '', ratio: 1 },
+    default: { desc: '', ratio: 1 },
   })
   const dialog = screen.getByRole('dialog')
-  const input = within(dialog).getByRole('combobox', { name: 'Group' })
+  const input = within(dialog).getByRole('combobox', { name: GROUP_LABEL })
   await userEvent.click(input)
   const option = await within(dialog).findByRole('option', { name: longGroup })
   expect(option).toBeVisible()
@@ -272,8 +294,9 @@ it.each([1, 10])(
     const router = await renderFilter('/usage-logs/common', {
       auto: { desc: '', ratio: 1 },
       'auto-team': { desc: '', ratio: 1 },
+      default: { desc: '', ratio: 1 },
     })
-    const input = screen.getByRole('combobox', { name: 'Group' })
+    const input = screen.getByRole('combobox', { name: GROUP_LABEL })
     await userEvent.click(input)
     const option = await screen.findByRole('option', { name: 'auto-team' })
     expect(
@@ -291,7 +314,7 @@ it('keeps historical auto values editable when auto is the only available group'
   const router = await renderFilter('/usage-logs/common?group=auto', {
     auto: { desc: '', ratio: 1 },
   })
-  const input = screen.getByRole('combobox', { name: 'Group' })
+  const input = screen.getByRole('combobox', { name: GROUP_LABEL })
   expect(input).toHaveValue('auto')
   await userEvent.click(input)
   expect(screen.queryByRole('option', { name: 'auto' })).not.toBeInTheDocument()
@@ -301,4 +324,21 @@ it('keeps historical auto values editable when auto is the only available group'
   await waitFor(() =>
     expect(router.state.location.search).toMatchObject({ group: 'retired' })
   )
+})
+
+// [user-ui] SwarmRouter: with a single usable group the filter means nothing
+// (audit 2.6 L9), so it is not offered.
+it('hides the group filter when the user has only one usable group', async () => {
+  await renderFilter(
+    '/usage-logs/common',
+    { default: { desc: '', ratio: 1 }, auto: { desc: '', ratio: 1 } },
+    false
+  )
+  await waitFor(() =>
+    expect(api.get).toHaveBeenCalledWith('/api/user/self/groups')
+  )
+  expect(screen.getByRole('textbox', { name: 'API key name' })).toBeVisible()
+  expect(
+    screen.queryByRole('combobox', { name: GROUP_LABEL })
+  ).not.toBeInTheDocument()
 })

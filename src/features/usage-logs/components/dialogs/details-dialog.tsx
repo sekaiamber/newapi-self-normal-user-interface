@@ -62,13 +62,19 @@ import { BILLING_PRICING_VARS } from '@/features/pricing/lib/billing-expr'
 import { pluginUsageSchema } from '@/features/pricing/lib/plugin-pricing'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import { formatBillingCurrencyFromUSD } from '@/lib/currency'
-import { formatLogQuota, formatTokens, formatUseTime } from '@/lib/format'
+import {
+  formatLogQuota,
+  formatTimestampToDate,
+  formatTokens,
+  formatUseTime,
+} from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 import { AuditDetailFields } from '../../audit/components/audit-detail-fields'
 import type { UsageLog } from '../../data/schema'
 import {
   parseLogOther,
+  formatModelName,
   getParamOverrideActionLabel,
   parseAuditLine,
   decodeBillingExprB64,
@@ -101,17 +107,19 @@ const CHANNEL_FIELD_LABELS: Record<string, string> = {
   key: 'Key',
 }
 
+// [user-ui] semantic tokens instead of emerald/amber/rose palette classes
 function timingTextColorClass(
   variant: 'success' | 'warning' | 'danger'
 ): string {
-  if (variant === 'success') return 'text-emerald-600'
-  if (variant === 'warning') return 'text-amber-600'
-  return 'text-rose-600'
+  if (variant === 'success') return 'text-success'
+  if (variant === 'warning') return 'text-warning'
+  return 'text-destructive'
 }
 
+// [user-ui] drop trailing zeros ("×1.5" instead of "1.5000x")
 function formatRatio(ratio: number | undefined): string {
   if (ratio == null) return '-'
-  return ratio.toFixed(4)
+  return ratio.toFixed(4).replace(/\.?0+$/, '')
 }
 
 function getUsageBillingPathLabel(
@@ -225,13 +233,21 @@ function BillingBreakdown(props: {
     }
   }
 
+  // [user-ui] "分组倍率 / 专属倍率" → "价格系数" (audit 2.6 L4, 2.9 terms); the
+  // account-specific variant keeps its own label, and a factor other than 1
+  // is explained under the rows (cost = usage × unit price × factor,
+  // guide/console/settings/rate-settings.md "Quota Calculation Formulas").
   const userGR = other.user_group_ratio
   const isUserGR = userGR != null && Number.isFinite(userGR) && userGR !== -1
   const effectiveGR = isUserGR ? userGR : other.group_ratio
+  const explainPriceFactor =
+    effectiveGR != null && Number.isFinite(effectiveGR) && effectiveGR !== 1
   if (effectiveGR != null && Number.isFinite(effectiveGR)) {
     rows.push({
-      label: isUserGR ? t('User Exclusive Ratio') : t('Group Ratio'),
-      value: `${formatRatio(effectiveGR)}x`,
+      label: isUserGR
+        ? t('logs.billing.priceFactorAccount')
+        : t('logs.billing.priceFactor'),
+      value: `×${formatRatio(effectiveGR)}`,
     })
   }
 
@@ -344,6 +360,11 @@ function BillingBreakdown(props: {
       {rows.map((row) => (
         <DetailRow key={row.label} label={row.label} value={row.value} mono />
       ))}
+      {explainPriceFactor && (
+        <p className='text-muted-foreground text-xs'>
+          {t('logs.billing.priceFactorHint')}
+        </p>
+      )}
       {usageFacts.length > 0 && (
         <>
           <Label className='text-xs font-semibold'>
@@ -498,6 +519,9 @@ export function DetailsDialog(props: DetailsDialogProps) {
   )
   const hasAudioTokens = other?.ws || other?.audio
   const showTiming = isTimingLogType(props.log.type)
+  // [user-ui] summary rows (time / model / cost) for call-type records
+  const showSummary = isDisplayableType(props.log.type)
+  const summaryModel = formatModelName(props.log)
   const showAdminIp =
     !!props.log.ip && (showTiming || (props.isAdmin && isTopup))
   const adminInfo = other?.admin_info
@@ -624,7 +648,8 @@ export function DetailsDialog(props: DetailsDialogProps) {
       onOpenChange={props.onOpenChange}
       title={
         <>
-          {t('Log Details')}
+          {/* [user-ui] covers calls, refunds and top-ups: "记录详情" */}
+          {t('logs.details.title')}
           <StatusBadge
             label={t(typeConfig.label)}
             variant={typeConfig.color as StatusBadgeProps['variant']}
@@ -646,6 +671,31 @@ export function DetailsDialog(props: DetailsDialogProps) {
       bodyClassName='pr-2 sm:pr-4'
     >
       <div className='w-full max-w-full min-w-0 space-y-2.5 overflow-x-hidden py-1 sm:space-y-3'>
+        {/* [user-ui] Summary first: when, which model, what it cost — the
+            dialog previously never showed the time and only showed the model
+            when it was mapped (audit 2.6 L4). */}
+        <div className='min-w-0 space-y-1'>
+          <DetailRow
+            label={t('Time')}
+            value={formatTimestampToDate(props.log.created_at)}
+            mono
+          />
+          {showSummary && summaryModel.name && (
+            <DetailRow label={t('Model')} value={summaryModel.name} mono />
+          )}
+          {showSummary && (
+            <DetailRow
+              label={t('Cost')}
+              value={
+                <span className='font-semibold tabular-nums'>
+                  {formatLogQuota(props.log.quota)}
+                </span>
+              }
+              mono
+            />
+          )}
+        </div>
+
         {/* Overview section - key identifiers */}
         <div className='min-w-0 space-y-1'>
           {props.log.request_id && (
@@ -686,12 +736,17 @@ export function DetailsDialog(props: DetailsDialogProps) {
           )}
 
           {props.log.token_name && (
-            <DetailRow label={t('Token')} value={props.log.token_name} mono />
+            <DetailRow
+              label={t('logs.col.key')}
+              value={props.log.token_name}
+              mono
+            />
           )}
 
+          {/* [user-ui] group wording from the override key logs.group.label */}
           {(props.log.group || other?.group) && (
             <DetailRow
-              label={t('Group')}
+              label={t('logs.group.label')}
               value={props.log.group || other?.group || ''}
               mono
             />
@@ -702,7 +757,10 @@ export function DetailsDialog(props: DetailsDialogProps) {
               label={t('IP Address')}
               value={
                 <span className='flex items-center gap-1'>
-                  <Globe className='size-3 text-amber-500' aria-hidden='true' />
+                  <Globe
+                    className='text-muted-foreground size-3'
+                    aria-hidden='true'
+                  />
                   {props.log.ip}
                 </span>
               }
@@ -737,11 +795,27 @@ export function DetailsDialog(props: DetailsDialogProps) {
                           )
                         )}
                       >
-                        {' '}
-                        (FRT: {formatUseTime(other.frt / 1000)})
+                        {/* [user-ui] "(FRT: …)" → "(first token …)" */}{' '}
+                        {t('logs.details.firstToken', {
+                          value: formatUseTime(other.frt / 1000),
+                        })}
                       </span>
                     )}
                 </span>
+              }
+            />
+          )}
+
+          {/* [user-ui] The "Stream" column is hidden by default, so the
+              dialog states how the call was made. Async jobs have no
+              streaming mode. */}
+          {showTiming && other?.is_task !== true && (
+            <DetailRow
+              label={t('logs.details.mode')}
+              value={
+                props.log.is_stream
+                  ? t('logs.details.streaming')
+                  : t('logs.details.nonStreaming')
               }
             />
           )}
@@ -760,7 +834,7 @@ export function DetailsDialog(props: DetailsDialogProps) {
                 aria-label={t('Copy to clipboard')}
               >
                 {copiedText === conversionLabel ? (
-                  <Check className='size-3 text-green-600' />
+                  <Check className='text-success size-3' />
                 ) : (
                   <Copy className='size-3' />
                 )}
@@ -951,7 +1025,7 @@ export function DetailsDialog(props: DetailsDialogProps) {
               />
             ))}
             {showLegacyTopupWarning && (
-              <div className='flex items-start gap-1.5 text-xs text-amber-600 dark:text-amber-400'>
+              <div className='text-warning flex items-start gap-1.5 text-xs'>
                 <Info className='mt-0.5 size-3.5 shrink-0' aria-hidden='true' />
                 <span>
                   {t(
@@ -1181,9 +1255,9 @@ export function DetailsDialog(props: DetailsDialogProps) {
               value={
                 <span className='flex items-center gap-1'>
                   {isUsageBillingPathLocal(other.admin_info) ? (
-                    <Monitor className='size-3 text-blue-500' />
+                    <Monitor className='text-info size-3' />
                   ) : (
-                    <Cloud className='size-3 text-emerald-500' />
+                    <Cloud className='text-success size-3' />
                   )}
                   <span className='text-xs'>
                     {getUsageBillingPathLabel(t, other.admin_info)}
@@ -1326,7 +1400,7 @@ export function DetailsDialog(props: DetailsDialogProps) {
                 aria-label={t('Copy to clipboard')}
               >
                 {copiedText === details ? (
-                  <Check className='size-3 text-green-600' />
+                  <Check className='text-success size-3' />
                 ) : (
                   <Copy className='size-3' />
                 )}

@@ -41,19 +41,24 @@ import {
 } from './section-registry'
 
 const route = getRouteApi('/_authenticated/usage-logs/$section')
-const TASK_LOG_SECTIONS = ['drawing', 'task'] as const
+// [user-ui] Async tasks first: the sidebar entry "任务记录" opens /usage-logs/task,
+// so its tab must be the first one (audit 2.7 T1).
+const TASK_LOG_SECTIONS = ['task', 'drawing'] as const
 
+// [user-ui] Page titles follow the console IA (ledger: 调用记录 / 任务记录);
+// tab labels say what each tab holds instead of repeating the page title.
 const SECTION_META: Record<UsageLogsSectionId, { titleKey: string }> = {
   common: {
-    titleKey: 'Common Logs',
+    titleKey: 'logs.page.calls',
   },
   drawing: {
-    titleKey: 'Drawing Logs',
+    titleKey: 'logs.tab.midjourney',
   },
   task: {
-    titleKey: 'Task Logs',
+    titleKey: 'logs.tab.asyncTasks',
   },
 }
+const TASK_PAGE_TITLE_KEY = 'logs.page.tasks'
 
 function UsageLogsContent() {
   const { t } = useTranslation()
@@ -117,17 +122,17 @@ function UsageLogsContent() {
     [setViewScope]
   )
 
-  const pageMeta =
-    activeCategory === 'common' ? SECTION_META.common : SECTION_META.task
+  const pageTitleKey =
+    activeCategory === 'common'
+      ? SECTION_META.common.titleKey
+      : TASK_PAGE_TITLE_KEY
   const showTaskSwitcher =
     activeCategory !== 'common' && visibleSections.length > 1
 
   return (
     <>
       <SectionPageLayout fixedContent>
-        <SectionPageLayout.Title>
-          {t(pageMeta.titleKey)}
-        </SectionPageLayout.Title>
+        <SectionPageLayout.Title>{t(pageTitleKey)}</SectionPageLayout.Title>
         <SectionPageLayout.Actions>
           {canManageScope && (
             <Tabs value={viewScope} onValueChange={handleViewScopeChange}>

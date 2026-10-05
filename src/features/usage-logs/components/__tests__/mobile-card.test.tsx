@@ -24,12 +24,20 @@ import {
 } from '@tanstack/react-table'
 import { render, screen, within, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { expect, it, vi } from 'vitest'
+import i18next from 'i18next'
+import { beforeAll, expect, it, vi } from 'vitest'
+
+import { overridesEn } from '@/i18n/overrides'
 
 import { usageLogSchema, type UsageLog } from '../../data/schema'
 import { useCommonLogsColumns } from '../columns/common-logs-columns'
 import { UsageLogsMobileList } from '../usage-logs-mobile-card'
 import { UsageLogsProvider, useUsageLogsContext } from '../usage-logs-provider'
+
+// [user-ui] SwarmRouter wording lives in the i18n override layer
+beforeAll(() => {
+  i18next.addResourceBundle('en', 'translation', overridesEn, true, true)
+})
 
 const longName = 'enterprise-production-failover-2026-without-any-short-alias'
 const log = usageLogSchema.parse({
@@ -145,7 +153,7 @@ it('hides sensitive names and disables full-text inspection when privacy is enab
     screen.queryByRole('button', { name: /Channel:/ })
   ).not.toBeInTheDocument()
   expect(
-    screen.queryByRole('button', { name: /Token:/ })
+    screen.queryByRole('button', { name: /API key:/ })
   ).not.toBeInTheDocument()
 })
 
@@ -156,7 +164,7 @@ it('respects hidden columns and omits admin fields in the self view', () => {
   })
   expect(
     screen.queryByRole('button', {
-      name: /Channel:|User:|Token:|Group:|Model:/,
+      name: /Channel:|User:|API key:|Group:|Model:/,
     })
   ).not.toBeInTheDocument()
   expect(screen.queryByText('enterprise-production')).not.toBeInTheDocument()
@@ -166,8 +174,8 @@ it('keeps input, output and cache quantities readable without empty metric cells
   renderLogs()
   expect(screen.getByText('Input')).toBeVisible()
   expect(screen.getByText('Output')).toBeVisible()
-  expect(screen.getByText(/300/)).toBeVisible()
-  expect(screen.getByText('Cache ↑ 200')).toBeVisible()
+  expect(screen.getByText('Cache read 300')).toBeVisible()
+  expect(screen.getByText('Cache write 200')).toBeVisible()
 })
 
 it('shows the established empty state when no logs exist', () => {
@@ -265,4 +273,27 @@ it('shows loading placeholders without displaying stale log fields', () => {
   expect(
     screen.queryByRole('button', { name: /^Model:/ })
   ).not.toBeInTheDocument()
+})
+
+// [user-ui] SwarmRouter: group and price factor are admin billing details; a
+// regular user sees the key name on the card and the rest in the dialog.
+it('shows the key name but not the group or price factor in the self view', () => {
+  renderLogs({
+    admin: false,
+    logs: [
+      {
+        ...log,
+        other: JSON.stringify({ model_ratio: 1, group_ratio: 1.5 }),
+      },
+    ],
+  })
+  expect(
+    screen.getByRole('button', { name: 'API key: backend-production-token' })
+  ).toBeVisible()
+  expect(
+    screen.queryByRole('button', {
+      name: new RegExp(`^${overridesEn['logs.group.label']}:`),
+    })
+  ).not.toBeInTheDocument()
+  expect(screen.queryByText(/1\.5×/)).not.toBeInTheDocument()
 })

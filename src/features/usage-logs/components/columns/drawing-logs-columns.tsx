@@ -226,7 +226,9 @@ export function useDrawingLogsColumns(
     },
     {
       accessorKey: 'prompt',
-      header: t('Prompt'),
+      // [user-ui] "提示" reads as "hint"; the column holds the prompt (提示词)
+      header: t('logs.col.prompt'),
+      meta: { label: t('logs.col.prompt') },
       cell: function PromptCell({ row }) {
         const log = row.original
         const prompt = row.getValue('prompt') as string
