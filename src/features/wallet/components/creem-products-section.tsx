@@ -16,9 +16,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+// [user-ui] Creem 商品改为真正的按钮（官方是带 onClick 的 Card，键盘无法操作）；
+// 价格与额度用等宽数字，价格不再用金色文字（浅色背景对比度不足）。
 import { useTranslation } from 'react-i18next'
 
-import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatNumber } from '@/lib/format'
 
@@ -40,9 +42,9 @@ export function CreemProductsSection({
 
   if (loading) {
     return (
-      <div className='grid grid-cols-2 gap-2 sm:grid-cols-2 sm:gap-3 md:grid-cols-3'>
-        {Array.from({ length: 3 }).map((_, i) => (
-          <Skeleton key={i} className='h-24 rounded-lg' />
+      <div className='grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3'>
+        {['a', 'b', 'c'].map((key) => (
+          <Skeleton key={key} className='h-20 rounded-lg' />
         ))}
       </div>
     )
@@ -53,24 +55,27 @@ export function CreemProductsSection({
   }
 
   return (
-    <div className='grid grid-cols-2 gap-2 sm:grid-cols-2 sm:gap-3 md:grid-cols-3'>
+    <div className='grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3'>
       {products.map((product) => (
-        <Card
+        <Button
           key={product.productId}
-          data-card-hover='false'
-          className='cursor-pointer'
+          variant='outline'
+          className='h-auto min-h-20 flex-col items-start gap-1 px-3 py-2.5 text-left whitespace-normal sm:px-4'
           onClick={() => onProductSelect(product)}
         >
-          <CardContent className='p-3 text-center sm:p-4'>
-            <div className='mb-2 text-lg font-medium'>{product.name}</div>
-            <div className='text-muted-foreground mb-2 text-sm'>
-              {t('Quota')}: {formatNumber(product.quota)}
-            </div>
-            <div className='text-primary text-lg font-semibold'>
-              {formatCreemPrice(product.price, product.currency)}
-            </div>
-          </CardContent>
-        </Card>
+          <span className='w-full truncate text-sm font-semibold'>
+            {product.name}
+          </span>
+          <span className='font-mono text-lg font-bold tabular-nums'>
+            {formatCreemPrice(product.price, product.currency)}
+          </span>
+          <span className='text-muted-foreground text-xs font-normal'>
+            {t('Quota')}:{' '}
+            <span className='font-mono tabular-nums'>
+              {formatNumber(product.quota)}
+            </span>
+          </span>
+        </Button>
       ))}
     </div>
   )

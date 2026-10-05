@@ -16,6 +16,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+// [user-ui] 支付确认弹窗：文案改新 key（"到账额度 / 实付金额"，与充值卡片一致），
+// 说明确认后会跳转到支付页面（官方文档 guide/feature-guide/user/wallet.md）；
+// 绿色写死色改 text-success，金额改等宽数字。
 import { Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
@@ -71,83 +74,83 @@ export function PaymentConfirmDialog({
       <AlertDialogContent className='max-sm:w-[calc(100vw-1.5rem)] sm:max-w-md'>
         <AlertDialogHeader>
           <AlertDialogTitle className='text-xl font-semibold'>
-            {t('Confirm Payment')}
+            {t('wallet.confirm.title')}
           </AlertDialogTitle>
           <AlertDialogDescription>
-            {t('Review your payment details')}
+            {t('wallet.confirm.description')}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
-        <div className='space-y-3 py-3 sm:space-y-4 sm:py-4'>
-          <div className='flex items-center justify-between'>
-            <span className='text-muted-foreground text-sm'>
-              {t('Topup Amount')}
-            </span>
-            <span className='text-lg font-semibold'>
+        <dl className='border-edge-soft divide-border divide-y rounded-lg border-2'>
+          <div className='flex items-center justify-between gap-3 px-3 py-2.5'>
+            <dt className='text-muted-foreground text-sm'>
+              {t('wallet.topup.youGet')}
+            </dt>
+            <dd className='font-mono text-base font-semibold tabular-nums'>
               {formatLocalCurrencyAmount(topupAmount * usdExchangeRate, {
                 digitsLarge: 2,
                 digitsSmall: 2,
                 abbreviate: false,
               })}
-            </span>
+            </dd>
           </div>
 
-          <div className='flex items-center justify-between'>
-            <span className='text-muted-foreground text-sm'>
-              {t('You Pay')}
-            </span>
+          <div className='flex items-center justify-between gap-3 px-3 py-2.5'>
+            <dt className='text-muted-foreground text-sm'>
+              {t('wallet.topup.youPay')}
+            </dt>
             {calculating ? (
               <Skeleton className='h-6 w-24' />
             ) : (
-              <div className='flex items-baseline gap-2'>
-                <span className='text-2xl font-semibold'>
+              <dd className='flex items-baseline gap-2'>
+                <span className='font-mono text-2xl font-bold tabular-nums'>
                   {formatCurrency(paymentAmount)}
                 </span>
                 {hasDiscount && (
-                  <span className='text-muted-foreground text-sm line-through'>
+                  <span className='text-muted-foreground font-mono text-sm tabular-nums line-through'>
                     {formatCurrency(originalAmount)}
                   </span>
                 )}
-              </div>
+              </dd>
             )}
           </div>
 
           {hasDiscount && !calculating && (
-            <div className='bg-muted/50 rounded-lg p-3'>
-              <div className='flex items-center justify-between text-sm'>
-                <span className='text-muted-foreground'>{t('You save')}</span>
-                <span className='font-semibold text-green-600'>
-                  {formatCurrency(discountAmount)}
-                </span>
-              </div>
+            <div className='flex items-center justify-between gap-3 px-3 py-2.5 text-sm'>
+              <dt className='text-muted-foreground'>
+                {t('wallet.confirm.saved')}
+              </dt>
+              <dd className='text-success font-mono font-semibold tabular-nums'>
+                {formatCurrency(discountAmount)}
+              </dd>
             </div>
           )}
 
-          <div className='border-t pt-4'>
-            <div className='flex items-center justify-between'>
-              <span className='text-muted-foreground text-sm'>
-                {t('Payment Method')}
+          <div className='flex items-center justify-between gap-3 px-3 py-2.5'>
+            <dt className='text-muted-foreground text-sm'>
+              {t('wallet.topup.methodLabel')}
+            </dt>
+            <dd className='flex min-w-0 items-center gap-2'>
+              {getPaymentIcon(
+                paymentMethod?.type,
+                'size-4',
+                paymentMethod?.icon,
+                paymentMethod?.name
+              )}
+              <span className='truncate font-medium'>
+                {paymentMethod?.name}
               </span>
-              <div className='flex items-center gap-2'>
-                {getPaymentIcon(
-                  paymentMethod?.type,
-                  'h-4 w-4',
-                  paymentMethod?.icon,
-                  paymentMethod?.name
-                )}
-                <span className='font-medium'>{paymentMethod?.name}</span>
-              </div>
-            </div>
+            </dd>
           </div>
-        </div>
+        </dl>
 
         <AlertDialogFooter className='grid grid-cols-2 gap-2 sm:flex'>
           <AlertDialogCancel disabled={processing}>
             {t('Cancel')}
           </AlertDialogCancel>
           <AlertDialogAction onClick={onConfirm} disabled={processing}>
-            {processing && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
-            {t('Confirm Payment')}
+            {processing && <Loader2 className='animate-spin' aria-hidden />}
+            {t('wallet.confirm.submit')}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

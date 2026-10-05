@@ -16,6 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+// [user-ui] Creem 确认弹窗：与充值确认弹窗同样的明细框；价格不用金色文字，金额改等宽数字；
+// 说明确认后会跳转到支付页面。
 import { Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
@@ -49,8 +51,8 @@ export function CreemConfirmDialog({
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title={t('Confirm Creem Purchase')}
-      description={t('Review your purchase details before proceeding.')}
+      title={t('wallet.confirm.title')}
+      description={t('wallet.confirm.description')}
       contentClassName='max-sm:w-[calc(100vw-1.5rem)] sm:max-w-[425px]'
       footerClassName='grid grid-cols-2 gap-2 sm:flex'
       contentHeight='auto'
@@ -65,28 +67,32 @@ export function CreemConfirmDialog({
             {t('Cancel')}
           </Button>
           <Button onClick={onConfirm} disabled={processing}>
-            {processing && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
-            {t('Confirm Payment')}
+            {processing && <Loader2 className='animate-spin' aria-hidden />}
+            {t('wallet.confirm.submit')}
           </Button>
         </>
       }
     >
-      <div className='space-y-3 py-3 sm:space-y-4 sm:py-4'>
-        <div className='flex items-center justify-between'>
-          <span className='text-muted-foreground'>{t('Product')}</span>
-          <span className='font-medium'>{product.name}</span>
+      <dl className='border-edge-soft divide-border divide-y rounded-lg border-2'>
+        <div className='flex items-center justify-between gap-3 px-3 py-2.5'>
+          <dt className='text-muted-foreground text-sm'>{t('Product')}</dt>
+          <dd className='truncate font-medium'>{product.name}</dd>
         </div>
-        <div className='flex items-center justify-between'>
-          <span className='text-muted-foreground'>{t('Price')}</span>
-          <span className='text-primary font-medium'>
+        <div className='flex items-center justify-between gap-3 px-3 py-2.5'>
+          <dt className='text-muted-foreground text-sm'>
+            {t('wallet.topup.youPay')}
+          </dt>
+          <dd className='font-mono text-lg font-bold tabular-nums'>
             {formatCreemPrice(product.price, product.currency)}
-          </span>
+          </dd>
         </div>
-        <div className='flex items-center justify-between'>
-          <span className='text-muted-foreground'>{t('Quota')}</span>
-          <span className='font-medium'>{formatNumber(product.quota)}</span>
+        <div className='flex items-center justify-between gap-3 px-3 py-2.5'>
+          <dt className='text-muted-foreground text-sm'>{t('Quota')}</dt>
+          <dd className='font-mono font-medium tabular-nums'>
+            {formatNumber(product.quota)}
+          </dd>
         </div>
-      </div>
+      </dl>
     </Dialog>
   )
 }
