@@ -1,5 +1,5 @@
 {
-  "logs.page.calls": "Call Logs",
+  "logs.page.calls": "Request Logs",
   "logs.page.tasks": "Task Logs",
   "logs.tab.asyncTasks": "Async tasks",
   "logs.tab.midjourney": "Midjourney",

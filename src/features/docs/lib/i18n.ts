@@ -26,7 +26,7 @@ const ZH_CN: TranslationTable = {
   'API basics': 'API 基础',
   'Base URLs, authentication, OpenAI, Claude and Gemini formats, model list and streaming.':
     '地址规则、认证方式、OpenAI / Claude / Gemini 请求格式、模型列表与流式输出。',
-  'API keys and quota': '令牌与额度',
+  'API keys and quota': 'API 密钥与额度',
   'What each API key option does, and how account balance differs from key quota.':
     'API 密钥各项设置的含义，以及账户余额与密钥额度的区别。',
   'Client setup': '客户端接入',
@@ -56,7 +56,7 @@ const ZH_TW: TranslationTable = {
   'API basics': 'API 基礎',
   'Base URLs, authentication, OpenAI, Claude and Gemini formats, model list and streaming.':
     '位址規則、認證方式、OpenAI / Claude / Gemini 請求格式、模型清單與串流輸出。',
-  'API keys and quota': '令牌與額度',
+  'API keys and quota': 'API 金鑰與額度',
   'What each API key option does, and how account balance differs from key quota.':
     'API 金鑰各項設定的含義，以及帳戶餘額與金鑰額度的區別。',
   'Client setup': '用戶端接入',

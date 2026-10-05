@@ -188,7 +188,7 @@ curl -N "$BASE_URL/v1beta/models/gemini-2.5-pro:streamGenerateContent?alt=sse&ke
   -d '{"contents": [{"parts": [{"text": "从 1 数到 10"}]}]}'
 ```
 
-在「使用日志」里，流式请求会单独标出，并可能显示首字时间，方便确认请求是否真的以流式方式完成。
+在「调用记录」的详情里可以看到调用方式（流式 / 非流式），流式请求还可能显示首字时间，方便确认请求是否真的以流式方式完成。
 
 ## 其他接口
 
