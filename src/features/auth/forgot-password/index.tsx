@@ -17,38 +17,45 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { Link } from '@tanstack/react-router'
+import { ArrowLeft } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { AuthLayout } from '../auth-layout'
 import { ForgotPasswordForm } from './components/forgot-password-form'
 
+// [user-ui] 审计 2.13 U7：找回密码页不再出现"还没有账户？注册"，改为"想起来了？返回登录"，
+// 并说明只适用于已绑定邮箱的账户。标题改为 h1、左对齐。
 export function ForgotPassword() {
   const { t } = useTranslation()
   return (
     <AuthLayout>
-      <div className='w-full space-y-8'>
-        <div className='space-y-3'>
-          <h2 className='text-center text-2xl font-semibold tracking-tight sm:text-left'>
+      <div className='w-full space-y-6'>
+        <div className='space-y-1.5'>
+          <h1 className='text-2xl font-semibold tracking-tight'>
             {t('Forgot password')}
-          </h2>
-          <p className='text-muted-foreground text-left text-sm sm:text-base'>
+          </h1>
+          <p className='text-muted-foreground text-sm'>
             {t(
               'Enter your registered email and we will send you a link to reset your password.'
             )}
           </p>
-          <p className='text-muted-foreground text-left text-sm sm:text-base'>
-            {t("Don't have an account?")}{' '}
-            <Link
-              to='/sign-up'
-              className='hover:text-primary font-medium underline underline-offset-4'
-            >
-              {t('Sign up')}
-            </Link>
-            .
+          <p className='text-muted-foreground text-sm'>
+            {t('auth.forgot.emailOnly')}
           </p>
         </div>
 
-        <ForgotPasswordForm className='space-y-0' />
+        <ForgotPasswordForm />
+
+        <p className='text-muted-foreground text-sm'>
+          {t('auth.forgot.remembered')}{' '}
+          <Link
+            to='/sign-in'
+            className='text-primary-ink inline-flex items-center gap-1 font-medium underline-offset-4 hover:underline'
+          >
+            <ArrowLeft className='size-3.5' aria-hidden='true' />
+            {t('Back to login')}
+          </Link>
+        </p>
       </div>
     </AuthLayout>
   )
