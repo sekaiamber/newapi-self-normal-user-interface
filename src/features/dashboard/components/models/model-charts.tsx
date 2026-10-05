@@ -22,6 +22,7 @@ import { useEffect, useMemo, useState, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { IconBadge } from '@/components/ui/icon-badge'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useThemeCustomization } from '@/context/theme-customization-provider'
 import { useTheme } from '@/context/theme-provider'
 import {
@@ -29,6 +30,7 @@ import {
   MODEL_ANALYTICS_CHART_OPTIONS,
 } from '@/features/dashboard/constants'
 import { processChartData } from '@/features/dashboard/lib'
+import { readChartPalette } from '@/features/dashboard/lib/chart-palette'
 import type {
   ModelAnalyticsChartTab,
   QuotaDataItem,
@@ -47,6 +49,13 @@ const CHART_SPEC_KEYS: Record<ModelAnalyticsChartTab, ChartSpecKey> = {
   trend: 'spec_model_line',
   proportion: 'spec_pie',
   top: 'spec_rank_bar',
+}
+
+// [user-ui] 图表切换的短名称（趋势 / 占比 / 排行）
+const MODEL_CHART_TAB_LABEL_KEYS: Record<ModelAnalyticsChartTab, string> = {
+  trend: 'usage.stats.chart.trend',
+  proportion: 'usage.stats.chart.share',
+  top: 'usage.stats.chart.ranking',
 }
 
 interface ModelChartsProps {
@@ -96,15 +105,22 @@ export function ModelCharts(props: ModelChartsProps) {
     updateTheme()
   }, [resolvedTheme])
 
+  // [user-ui] 配色取自主题 token（lib/chart-palette.ts）。明暗切换时 themeReady 先变 false、
+  // 切换完成后变 true，此时重新读取，换上新主题的颜色
+  const chartPalette = useMemo(
+    () => (themeReady ? (readChartPalette() ?? undefined) : undefined),
+    [themeReady]
+  )
   const chartData = useMemo(
     () =>
       processChartData(
         props.loading ? [] : props.data,
         timeGranularity,
         t,
-        chartRadius
+        chartRadius,
+        chartPalette
       ),
-    [props.data, props.loading, timeGranularity, t, chartRadius]
+    [props.data, props.loading, timeGranularity, t, chartRadius, chartPalette]
   )
 
   const spec = chartData[CHART_SPEC_KEYS[activeTab]]
@@ -119,36 +135,41 @@ export function ModelCharts(props: ModelChartsProps) {
   ].join('-')
 
   return (
-    <div className='overflow-hidden rounded-lg border'>
+    // [user-ui] 品牌 2px 边卡片；标题写明"按模型的请求次数"（原与页面同名的"模型调用分析"）；
+    // 图表切换改用共享 Tabs（原为手写按钮，没有选中状态的无障碍属性），名称缩短为 趋势/占比/排行
+    <div className='bg-card border-edge-soft overflow-hidden rounded-lg border-2'>
       <div className='flex w-full flex-col gap-1.5 border-b px-3 py-2 sm:gap-3 sm:px-5 sm:py-3 lg:flex-row lg:items-center lg:justify-between'>
-        <div className='flex items-center gap-2'>
+        <div className='flex flex-wrap items-center gap-x-2 gap-y-1'>
           <IconBadge tone='chart-4' size='sm'>
             <PieChartIcon />
           </IconBadge>
           <div className='text-sm font-semibold'>
-            {t('Model Call Analytics')}
+            {t('usage.stats.chart.requests')}
           </div>
-          <span className='text-muted-foreground text-xs'>
+          <span className='text-muted-foreground font-mono text-xs tabular-nums'>
             {t('Total:')} {chartData.totalCountDisplay}
           </span>
         </div>
 
-        <div className='bg-muted/60 inline-flex h-7 w-full overflow-x-auto rounded-lg border p-0.5 sm:h-8 sm:w-auto'>
-          {MODEL_ANALYTICS_CHART_OPTIONS.map((tab) => (
-            <button
-              key={tab.value}
-              type='button'
-              onClick={() => setActiveTab(tab.value)}
-              className={`shrink-0 rounded-md px-3 text-xs font-medium transition-colors ${
-                activeTab === tab.value
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {t(tab.labelKey)}
-            </button>
-          ))}
-        </div>
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) =>
+            setActiveTab(value as ModelAnalyticsChartTab)
+          }
+          className='shrink-0'
+        >
+          <TabsList aria-label={t('usage.stats.chart.type')}>
+            {MODEL_ANALYTICS_CHART_OPTIONS.map((tab) => (
+              <TabsTrigger
+                key={tab.value}
+                value={tab.value}
+                className='px-2.5 text-xs'
+              >
+                {t(MODEL_CHART_TAB_LABEL_KEYS[tab.value])}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
       </div>
 
       <div className='h-[300px] p-1.5 sm:h-96 sm:p-2'>

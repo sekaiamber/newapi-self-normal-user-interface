@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Filter, RotateCcw, Calendar, Search } from 'lucide-react'
+import { CalendarRange, RotateCcw, Calendar, Search } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -42,6 +42,7 @@ import {
   buildDefaultDashboardFilters,
   cleanFilters,
 } from '@/features/dashboard/lib'
+import { describeDashboardRange } from '@/features/dashboard/lib/range-label'
 import type {
   DashboardChartPreferences,
   DashboardFilters,
@@ -96,6 +97,7 @@ const SectionDivider = ({ label }: { label: string }) => (
   </div>
 )
 
+// [user-ui] 另含 lint 修正（no-useless-spread、curly），行为不变
 export function ModelsFilter(props: ModelsFilterProps) {
   const { t } = useTranslation()
   // 使用已缓存的用户数据，避免重复调用 API
@@ -110,6 +112,7 @@ export function ModelsFilter(props: ModelsFilterProps) {
   const [selectedRange, setSelectedRange] = useState<number | null>(() =>
     detectQuickRangeDays(props.currentFilters)
   )
+  const rangeSummary = describeDashboardRange(props.currentFilters, t)
 
   const handleOpenChange = (nextOpen: boolean) => {
     // Sync the editing state from the applied filters every time the dialog
@@ -150,8 +153,9 @@ export function ModelsFilter(props: ModelsFilterProps) {
     value: Date | string | undefined
   ) => {
     setFilters((prev) => ({ ...prev, [field]: value }))
-    if (field === 'start_timestamp' || field === 'end_timestamp')
+    if (field === 'start_timestamp' || field === 'end_timestamp') {
       setSelectedRange(null)
+    }
   }
 
   const handleQuickRange = (days: number) => {
@@ -170,10 +174,15 @@ export function ModelsFilter(props: ModelsFilterProps) {
     <Dialog
       open={open}
       onOpenChange={handleOpenChange}
+      // [user-ui] 按钮上直接显示当前时间范围（审计 2.3 #1），原来只写"筛选"
       trigger={
-        <Button variant='outline' size='sm'>
-          <Filter className='mr-2 h-4 w-4' />
-          {t('Filter')}
+        <Button
+          variant='outline'
+          size='sm'
+          aria-label={`${t(props.titleKey ?? 'Model Analytics Filters')}: ${rangeSummary}`}
+        >
+          <CalendarRange data-icon='inline-start' aria-hidden='true' />
+          <span className='max-w-[14rem] truncate'>{rangeSummary}</span>
         </Button>
       }
       title={t(props.titleKey ?? 'Model Analytics Filters')}
@@ -257,12 +266,10 @@ export function ModelsFilter(props: ModelsFilterProps) {
           <div className='grid gap-2'>
             <Label htmlFor='time_granularity'>{t('Time Granularity')}</Label>
             <Select
-              items={[
-                ...TIME_GRANULARITY_OPTIONS.map((option) => ({
-                  value: option.value,
-                  label: t(option.label),
-                })),
-              ]}
+              items={TIME_GRANULARITY_OPTIONS.map((option) => ({
+                value: option.value,
+                label: t(option.label),
+              }))}
               value={filters.time_granularity}
               onValueChange={(value) =>
                 handleChange('time_granularity', value as TimeGranularity)
