@@ -19,22 +19,19 @@ For commercial licensing, please contact support@quantumnous.com
 import { useCallback, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
+// [user-ui] 页脚改由 PublicLayout 的 footer 属性渲染（默认首页用完整页脚，其他情况用精简页脚）
 import { PublicLayout } from '@/components/layout'
-import { Footer } from '@/components/layout/components/footer'
 import { RichContent } from '@/components/rich-content'
 import { useTheme } from '@/context/theme-provider'
 import { isLikelyHtml } from '@/lib/content-format'
-import { useAuthStore } from '@/stores/auth-store'
 
-import { CTA, Features, Hero, HowItWorks, Stats } from './components'
+import { ApiFormats, Clients, Faq, Hero, QuickStart } from './components'
 import { useHomePageContent } from './hooks'
 
 export function Home() {
   const { i18n, t } = useTranslation()
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const { resolvedTheme } = useTheme()
-  const { auth } = useAuthStore()
-  const isAuthenticated = !!auth.user
   const { content, isLoaded, isUrl } = useHomePageContent()
 
   const syncIframePreferences = useCallback(() => {
@@ -58,11 +55,17 @@ export function Home() {
     }
   }, [isUrl, syncIframePreferences])
 
+  // [user-ui] 加载中不显示页脚，避免内容出现前页脚闪到屏幕中间
   if (!isLoaded) {
     return (
-      <PublicLayout showMainContainer={false}>
-        <main className='flex min-h-screen items-center justify-center'>
-          <div className='text-muted-foreground'>{t('Loading...')}</div>
+      <PublicLayout showMainContainer={false} footer='none'>
+        <main className='flex min-h-svh items-center justify-center'>
+          <div
+            className='text-muted-foreground font-mono text-sm'
+            role='status'
+          >
+            {t('Loading...')}
+          </div>
         </main>
       </PublicLayout>
     )
@@ -120,14 +123,17 @@ export function Home() {
     )
   }
 
+  // [user-ui] 默认首页：SwarmRouter 品牌版（审计 5.2 方向 B）。管理员在后台设置了首页内容时，
+  // 上面的分支仍会整页替换它（官方行为保留），只额外保留页脚的源码与许可声明。
   return (
-    <PublicLayout showMainContainer={false}>
-      <Hero isAuthenticated={isAuthenticated} />
-      <Stats />
-      <Features />
-      <HowItWorks />
-      <CTA isAuthenticated={isAuthenticated} />
-      <Footer />
+    <PublicLayout showMainContainer={false} footer='full'>
+      <main id='content'>
+        <Hero />
+        <ApiFormats />
+        <QuickStart />
+        <Clients />
+        <Faq />
+      </main>
     </PublicLayout>
   )
 }
