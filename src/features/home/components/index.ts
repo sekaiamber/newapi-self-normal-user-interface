@@ -16,8 +16,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-export { CTA } from './sections/cta'
-export { Features } from './sections/features'
+// [user-ui] 首页按 SwarmRouter 品牌重做：Stats / Features / HowItWorks / CTA（New API 营销区块）删除，
+// 改为 Hero → 兼容格式 → 三步接入 → 客户端 → 常见问题（审计 5.2 方向 B）。
+export { ApiFormats } from './sections/api-formats'
+export { Clients } from './sections/clients'
+export { Faq } from './sections/faq'
 export { Hero } from './sections/hero'
-export { HowItWorks } from './sections/how-it-works'
-export { Stats } from './sections/stats'
+export { QuickStart } from './sections/quick-start'
