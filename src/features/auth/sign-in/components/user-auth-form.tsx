@@ -60,15 +60,21 @@ import { AuthOperationError } from '@/lib/secure-verification'
 import { createServerError } from '@/lib/server-error-message'
 import { cn } from '@/lib/utils'
 
+// [user-ui] defaultUsername：注册成功后带回登录页的用户名（审计 2.13 U2）
+type UserAuthFormProps = AuthFormProps & { defaultUsername?: string }
+
 export function UserAuthForm({
   className,
   redirectTo,
+  defaultUsername,
   ...props
-}: AuthFormProps) {
+}: UserAuthFormProps) {
   const { t } = useTranslation()
   const [isLoading, setIsLoading] = useState(false)
   const [wechatCode, setWeChatCode] = useState('')
   const [agreedToLegal, setAgreedToLegal] = useState(false)
+  // [user-ui] 未勾选协议就尝试登录时高亮勾选框（审计 2.13 U5）
+  const [legalConsentInvalid, setLegalConsentInvalid] = useState(false)
   const [passkeySupported, setPasskeySupported] = useState(false)
   const [isPasskeyLoading, setIsPasskeyLoading] = useState(false)
   const [passkeyDomains, setPasskeyDomains] = useState<PasskeyDomains | null>(
@@ -107,10 +113,8 @@ export function UserAuthForm({
   const hasUserAgreement = Boolean(status?.user_agreement_enabled)
   const hasPrivacyPolicy = Boolean(status?.privacy_policy_enabled)
   const requiresLegalConsent = hasUserAgreement || hasPrivacyPolicy
-  const passkeyButtonDisabled =
-    isPasskeyLoading ||
-    !passkeySupported ||
-    (requiresLegalConsent && !agreedToLegal)
+  // [user-ui] 不再因未勾选协议而禁用（点击时由 ensureLegalConsent 提示），见审计 2.13 U5
+  const passkeyButtonDisabled = isPasskeyLoading || !passkeySupported
   const hasWeChatLogin = Boolean(status?.wechat_login)
   const hasOAuthLogin = Boolean(
     status?.github_oauth ||
@@ -140,10 +144,27 @@ export function UserAuthForm({
   const form = useForm<z.infer<typeof loginFormSchema>>({
     resolver: zodResolver(loginFormSchema),
     defaultValues: {
-      username: '',
+      // [user-ui] 注册成功后带回的用户名
+      username: defaultUsername ?? '',
       password: '',
     },
   })
+
+  /**
+   * [user-ui] 协议未勾选时：提示原因并高亮勾选框，返回 false 阻止本次登录。
+   * 判断条件与官方一致（requiresLegalConsent && !agreedToLegal），只是从"禁用按钮"改为"点击后提示"。
+   */
+  function ensureLegalConsent(): boolean {
+    if (!requiresLegalConsent || agreedToLegal) return true
+    setLegalConsentInvalid(true)
+    toast.error(legalConsentErrorMessage)
+    return false
+  }
+
+  function handleLegalConsentChange(nextValue: boolean) {
+    setAgreedToLegal(nextValue)
+    if (nextValue) setLegalConsentInvalid(false)
+  }
 
   const wechatQrCodeUrl = useMemo(() => {
     return (
@@ -160,10 +181,8 @@ export function UserAuthForm({
   }, [status])
 
   async function onSubmit(data: z.infer<typeof loginFormSchema>) {
-    if (requiresLegalConsent && !agreedToLegal) {
-      toast.error(legalConsentErrorMessage)
-      return
-    }
+    // [user-ui] 同一判断，未勾选时额外高亮勾选框
+    if (!ensureLegalConsent()) return
 
     if (!validateTurnstile()) return
 
@@ -198,10 +217,8 @@ export function UserAuthForm({
   }
 
   const handleOpenWeChatDialog = () => {
-    if (requiresLegalConsent && !agreedToLegal) {
-      toast.error(legalConsentErrorMessage)
-      return
-    }
+    // [user-ui] 同一判断，未勾选时额外高亮勾选框
+    if (!ensureLegalConsent()) return
 
     setIsWeChatDialogOpen(true)
   }
@@ -241,10 +258,8 @@ export function UserAuthForm({
   }
 
   async function handlePasskeyLogin() {
-    if (requiresLegalConsent && !agreedToLegal) {
-      toast.error(legalConsentErrorMessage)
-      return
-    }
+    // [user-ui] 同一判断，未勾选时额外高亮勾选框
+    if (!ensureLegalConsent()) return
 
     if (!passkeySupported) {
       toast.error(t('Passkey is not supported on this device'))
@@ -299,49 +314,48 @@ export function UserAuthForm({
     }
   }
 
-  const alternativeLoginMethods = (
-    <>
-      {passkeyLoginEnabled && (
-        <div className='mt-2 space-y-1'>
-          <Button
-            type='button'
-            variant='outline'
-            disabled={passkeyButtonDisabled}
-            onClick={handlePasskeyLogin}
-            className='h-11 w-full justify-center gap-2 rounded-lg'
-          >
-            {isPasskeyLoading ? (
-              <Loader2 className='h-4 w-4 animate-spin' />
-            ) : (
-              <KeyRound className='h-4 w-4' />
-            )}
-            {t('Sign in with Passkey')}
-          </Button>
-          <PasskeyDomainSelector
-            domains={passkeyDomains}
-            value={passkeyRPID}
-            onChange={setPasskeyRPID}
-            disabled={passkeyButtonDisabled}
-          />
-          {!passkeySupported && (
-            <p className='text-muted-foreground text-xs'>
-              {t('Passkey is not supported on this device.')}
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* OAuth Providers */}
-      <OAuthProviders
-        status={status}
-        redirectTo={redirectTo}
-        disabled={isLoading || (requiresLegalConsent && !agreedToLegal)}
-        onWeChatLogin={hasWeChatLogin ? handleOpenWeChatDialog : undefined}
-        isWeChatLoading={isWeChatSubmitting}
+  // [user-ui] 通行密钥作为次要按钮，放在密码表单下方、与第三方登录共用一条分隔线（审计 2.13 U6）
+  const passkeyLogin = passkeyLoginEnabled ? (
+    <div className='space-y-1'>
+      <Button
+        type='button'
+        variant='outline'
+        disabled={passkeyButtonDisabled}
+        onClick={handlePasskeyLogin}
+        className='h-10 w-full justify-center gap-2'
+      >
+        {isPasskeyLoading ? (
+          <Loader2 className='h-4 w-4 animate-spin' />
+        ) : (
+          <KeyRound className='h-4 w-4' />
+        )}
+        {t('Sign in with Passkey')}
+      </Button>
+      <PasskeyDomainSelector
+        domains={passkeyDomains}
+        value={passkeyRPID}
+        onChange={setPasskeyRPID}
+        disabled={passkeyButtonDisabled}
       />
-    </>
+      {!passkeySupported && (
+        <p className='text-muted-foreground text-xs'>
+          {t('Passkey is not supported on this device.')}
+        </p>
+      )}
+    </div>
+  ) : null
+
+  const legalConsent = (
+    <LegalConsent
+      status={status}
+      checked={agreedToLegal}
+      onCheckedChange={handleLegalConsentChange}
+      invalid={legalConsentInvalid}
+    />
   )
 
+  // [user-ui] 版式改为：密码表单（人机验证、协议勾选在主按钮正上方）→ "或使用以下方式登录" → 通行密钥 + 第三方登录。
+  // 原版在后端开启任一第三方登录时把它们放在密码框上方，且没有统一的分隔线（审计 2.13 U5/U6）。
   return (
     <Form {...form}>
       <form
@@ -349,8 +363,6 @@ export function UserAuthForm({
         className={cn('grid gap-4', className)}
         {...props}
       >
-        {hasAlternativeLogin && alternativeLoginMethods}
-
         {passwordLoginEnabled && (
           <>
             {/* Username Field */}
@@ -363,6 +375,8 @@ export function UserAuthForm({
                   <FormControl>
                     <Input
                       placeholder={t('Enter your username or email')}
+                      // [user-ui] 便于浏览器/密码管理器自动填充
+                      autoComplete='username'
                       {...field}
                     />
                   </FormControl>
@@ -381,13 +395,16 @@ export function UserAuthForm({
                   <FormControl>
                     <PasswordInput
                       placeholder={t('Enter password')}
+                      autoComplete='current-password'
+                      autoFocus={Boolean(defaultUsername)}
                       {...field}
                     />
                   </FormControl>
                   <FormMessage />
+                  {/* [user-ui] 品牌链接色；仍排在密码框之后（键盘顺序：用户名 → 密码 → 忘记密码） */}
                   <Link
                     to='/forgot-password'
-                    className='text-muted-foreground absolute end-0 -top-0.5 z-10 text-sm font-medium hover:opacity-75'
+                    className='text-primary-ink absolute end-0 -top-0.5 z-10 text-sm font-medium underline-offset-4 hover:underline'
                   >
                     {t('Forgot password?')}
                   </Link>
@@ -395,38 +412,45 @@ export function UserAuthForm({
               )}
             />
 
+            {/* Turnstile */}
+            {isTurnstileEnabled && (
+              <Turnstile
+                key={turnstileWidgetKey}
+                siteKey={turnstileSiteKey}
+                onVerify={setTurnstileToken}
+                onExpire={() => setTurnstileToken('')}
+              />
+            )}
+
+            {legalConsent}
+
             {/* Submit Button */}
+            {/* [user-ui] 不再因未勾选协议而禁用（点击后由 ensureLegalConsent 提示） */}
             <Button
               type='submit'
-              className='mt-2 w-full justify-center gap-2'
-              disabled={isLoading || (requiresLegalConsent && !agreedToLegal)}
+              className='h-10 w-full justify-center gap-2'
+              disabled={isLoading}
             >
               {isLoading ? <Loader2 className='animate-spin' /> : <LogIn />}
               {t('Sign in')}
             </Button>
-
-            {/* Turnstile */}
-            {isTurnstileEnabled && (
-              <div className='mt-2'>
-                <Turnstile
-                  key={turnstileWidgetKey}
-                  siteKey={turnstileSiteKey}
-                  onVerify={setTurnstileToken}
-                  onExpire={() => setTurnstileToken('')}
-                />
-              </div>
-            )}
           </>
         )}
 
-        <LegalConsent
-          status={status}
-          checked={agreedToLegal}
-          onCheckedChange={setAgreedToLegal}
-          className='mt-1'
-        />
+        {!passwordLoginEnabled && legalConsent}
 
-        {!hasAlternativeLogin && alternativeLoginMethods}
+        {hasAlternativeLogin && (
+          <OAuthProviders
+            status={status}
+            redirectTo={redirectTo}
+            disabled={isLoading}
+            onWeChatLogin={hasWeChatLogin ? handleOpenWeChatDialog : undefined}
+            isWeChatLoading={isWeChatSubmitting}
+            divider={passwordLoginEnabled ? t('auth.divider.signIn') : false}
+            leading={passkeyLogin}
+            onBeforeLogin={ensureLegalConsent}
+          />
+        )}
       </form>
 
       {hasWeChatLogin && (
@@ -471,10 +495,11 @@ export function UserAuthForm({
         >
           {wechatQrCodeUrl ? (
             <div className='flex justify-center'>
+              {/* [user-ui] 二维码外框改为品牌 2px 边 */}
               <img
                 src={wechatQrCodeUrl}
                 alt={t('WeChat login QR code')}
-                className='h-40 w-40 rounded-md border object-contain'
+                className='border-edge-soft h-40 w-40 rounded-lg border-2 object-contain'
               />
             </div>
           ) : (
