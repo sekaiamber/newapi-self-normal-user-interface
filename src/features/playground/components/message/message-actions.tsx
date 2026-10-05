@@ -109,8 +109,9 @@ export function MessageActions({
   const actions: MessageActionItem[] = []
 
   if (hasContent) {
+    // [user-ui] 品牌语义色：已复制用 text-success（原 text-green-600）
     actions.push({
-      className: isCopied ? 'text-green-600' : '',
+      className: isCopied ? 'text-success' : '',
       icon: isCopied ? Check : Copy,
       label: isCopied
         ? MESSAGE_ACTION_LABELS.COPIED
