@@ -85,12 +85,21 @@
 
 **依赖**：新增 `@fontsource-variable/ibm-plex-sans`、`@fontsource-variable/jetbrains-mono`（SIL OFL 1.1）。
 
+**页面重绘（按工作包合并，详情见各合并提交与台账）**
+
+| 工作包 | 范围 | 要点（同步官方时需手工合并的地方） |
+| --- | --- | --- |
+| SHELL | `components/layout/**`（公共页除外）、`hooks/use-sidebar-*`、`use-top-nav-links.ts`、`profile-dropdown`、`command-menu`、`legacy-route.ts`、`features/errors/**` | 侧边栏按"概览 / 开始使用 / 用量 / 账户"分组改名（新 `nav.*` 键）；新增 `sidebar-source-footer.tsx`（AGPL 源码链接）、`features/errors/components/error-home-action.tsx`；`ProfileDropdown` 新增可选 `showPreferences`（明暗 / 语言子菜单）；⌘K 读侧边栏过滤后的导航；`context/search-provider.tsx` 改为向 `CommandMenu` 传 `open`/`onOpenChange`（消除循环引用）；`_authenticated/errors/$error.tsx` 去掉重复顶栏；`lib/avatar.ts` 按背景亮度选字色；旧地址不再指向已删页面 |
+| WALLET | `features/wallet/**`、订阅购买弹窗 | 布局重排；充值改为"选额度 → 选支付方式 → 去支付"；新增 `lib/{payment-options,topup-ui,subscription-payment}.ts`；推荐计划拆到 `referral-section.tsx`（开关关闭时不请求 `/api/user/aff`）；修复 `waffo_pancake` 被当作易支付下单 |
+| PLAYGROUND | `features/playground/**`、`components/ai-elements/**` | 去掉附件/搜索假按钮；示例只填入输入框；"查看代码"（`lib/code/playground-code.ts`）；错误分类与人话提示；`hooks/use-chat-handler.ts` 只改 toast 标题；管理员设置链接改为文字提示 |
+| ACCOUNT | `features/{profile,security}/**`、`features/usage-logs/audit/**` | 侧边栏显示设置按新分组（`profile/lib/sidebar-modules.ts`，与 `use-sidebar-config.ts` 的 URL 映射保持一致）；余额预警按余额单位输入（`profile/lib/quota-threshold.ts`）；删除 `security/components/privacy-card.tsx`，"记录 IP"移到个人资料的偏好卡片；账户活动默认列面向用户 |
+| PM | `components/ui/tabs.tsx`、`components/data-table/core/data-table-view.tsx` | 暗色选中标签文字色；表格外框 2px |
+
 ## 已知问题（官方原版即存在）
 
 - 4 个测试在官方 rc.37 原版上即稳定失败：`features/security/__tests__/account-security.test.tsx`（3 个）、`enrollment.test.tsx`（1 个）。
 - `bun run lint` 有官方遗留的 lint error（裁剪后 160 个，官方原版 194 个），本仓库未新增。
 - 审计日志、个人资料页在开发模式下有 Base UI 的 `nativeButton` 控制台警告。
-- 管理员在 playground 遇到"模型未定价"错误时，错误提示里的设置链接指向 `/system-settings/...`，在用户 UI 中是 404（只影响管理员）。
 
 ## 同步官方新版本的步骤
 
