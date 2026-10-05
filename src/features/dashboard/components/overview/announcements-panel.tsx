@@ -74,7 +74,8 @@ export function AnnouncementsPanel() {
       height='h-72'
       contentClassName='p-0'
     >
-      <ScrollArea className='h-72'>
+      {/* [user-ui] 高度随内容变化，最多 18rem 后滚动（原为固定高度，内容少时留下大片空白） */}
+      <ScrollArea className='[&>[data-slot=scroll-area-viewport]]:max-h-72'>
         <div>
           {list.map((item: AnnouncementItem, idx: number) => {
             const key = item.id ?? `announcement-${idx}`
@@ -94,13 +95,14 @@ export function AnnouncementsPanel() {
                     <p className='line-clamp-1 text-sm font-medium'>
                       {getPreviewText(item.content)}
                     </p>
+                    {/* [user-ui] 日期与提示去掉半透明（对比度不足）；键盘聚焦时也显示提示 */}
                     <div className='flex items-center justify-between'>
                       {item.publishDate && (
-                        <time className='text-muted-foreground/60 text-xs'>
+                        <time className='text-muted-foreground text-xs'>
                           {formatDateTimeObject(new Date(item.publishDate))}
                         </time>
                       )}
-                      <span className='text-muted-foreground/40 text-xs opacity-0 transition-opacity group-hover:opacity-100'>
+                      <span className='text-muted-foreground text-xs opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100'>
                         {t('Click for details')}
                       </span>
                     </div>

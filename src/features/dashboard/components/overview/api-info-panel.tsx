@@ -54,17 +54,19 @@ export function ApiInfoPanel() {
           <IconBadge tone='info' size='sm'>
             <Route />
           </IconBadge>
-          {t('API Info')}
+          {/* [user-ui] 用户口吻的标题与说明 */}
+          {t('usage.panels.apiInfo.title')}
         </span>
       }
-      description={t('Configured routes and latency checks')}
+      description={t('usage.panels.apiInfo.description')}
       loading={loading}
       empty={!list.length}
       emptyMessage={t('No API routes configured')}
       height='h-72'
       contentClassName='p-0'
     >
-      <ScrollArea className='h-72'>
+      {/* [user-ui] 高度随内容变化，最多 18rem 后滚动（原为固定高度，内容少时留下大片空白） */}
+      <ScrollArea className='[&>[data-slot=scroll-area-viewport]]:max-h-72'>
         <div>
           {list.map((item: ApiInfoItem, idx: number) => (
             <div

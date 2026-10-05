@@ -54,7 +54,8 @@ export function FAQPanel() {
       height='h-80'
       contentClassName='p-0'
     >
-      <ScrollArea className='h-80'>
+      {/* [user-ui] 高度随内容变化，最多 20rem 后滚动（原为固定高度，内容少时留下大片空白） */}
+      <ScrollArea className='[&>[data-slot=scroll-area-viewport]]:max-h-80'>
         <Accordion className='w-full px-4 sm:px-5'>
           {list.map((item: FAQItem, idx: number) => {
             const key = item.id ?? `faq-${idx}`
@@ -70,8 +71,9 @@ export function FAQPanel() {
                     {item.question}
                   </Markdown>
                 </AccordionTrigger>
+                {/* [user-ui] 答案正文去掉半透明（对比度不足） */}
                 <AccordionContent>
-                  <Markdown className='text-muted-foreground/60 text-sm'>
+                  <Markdown className='text-muted-foreground text-sm'>
                     {item.answer}
                   </Markdown>
                 </AccordionContent>

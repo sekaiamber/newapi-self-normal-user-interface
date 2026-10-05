@@ -16,7 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { type ReactNode } from 'react'
+// [user-ui] lint 修正（no-import-type-side-effects），行为不变
+import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Skeleton } from '@/components/ui/skeleton'
@@ -67,8 +68,9 @@ export function PanelWrapper(props: PanelWrapperProps) {
   const { t } = useTranslation()
   const resolvedEmptyMessage = props.emptyMessage ?? t('No data available')
   const height = props.height ?? 'h-64'
+  // [user-ui] 品牌硬边卡片：2px 边、小圆角，与共享 Card 一致（替代 1px 边 + 大圆角 + 阴影）
   const frameClassName = cn(
-    'overflow-hidden rounded-2xl border bg-card shadow-xs',
+    'bg-card border-edge-soft overflow-hidden rounded-lg border-2',
     props.className
   )
 
