@@ -273,7 +273,7 @@ export function BillingHistoryDialog({
                 value !== null && handlePageSizeChange(Number.parseInt(value))
               }
             >
-              <SelectTrigger className='h-9 w-[92px] sm:w-32'>
+              <SelectTrigger className='h-9 w-28 shrink-0 sm:w-32'>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent alignItemWithTrigger={false}>
