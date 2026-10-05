@@ -10,7 +10,7 @@ import {
 } from '../form-sections'
 
 describe('shouldShowGroupField', () => {
-  test('shows the route picker when there is more than one route', () => {
+  test('shows the group picker when there is more than one group', () => {
     expect(shouldShowGroupField(['default', 'vip'], '')).toBe(true)
   })
 
@@ -22,7 +22,7 @@ describe('shouldShowGroupField', () => {
     expect(shouldShowGroupField(groups, current)).toBe(false)
   })
 
-  test('keeps it visible when the key uses a route outside the available list', () => {
+  test('keeps it visible when the key uses a group outside the available list', () => {
     expect(shouldShowGroupField(['default'], 'legacy')).toBe(true)
   })
 })

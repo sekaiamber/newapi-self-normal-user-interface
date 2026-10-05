@@ -1,9 +1,9 @@
 /*
- * [user-ui] 当前用户可选的分组（线路）信息（本仓库新增文件，非官方代码）。
+ * [user-ui] 当前用户可选的分组信息（本仓库新增文件，非官方代码）。
  *
  * Adapted from QuantumNous/new-api web/src/features/keys/components/api-keys-columns.tsx
  * @ v1.0.0-rc.37 (AGPL-3.0)：原 useGroupRatios 只取倍率，这里同时取管理员写的分组说明
- * （desc），供"线路"单元格提示使用；查询键与请求不变。
+ * （desc），供分组单元格提示使用；查询键与请求不变。
  */
 import { useQuery } from '@tanstack/react-query'
 

@@ -40,7 +40,7 @@ type ApiKeyGroupCellProps = {
   shouldReduceMotion: boolean
 }
 
-// [user-ui] "线路"单元格（审计 2.5 K5）：不再给每行挂 "1x" 胶囊；只有价格不是标准价时
+// [user-ui] "分组"单元格（审计 2.5 K5）：不再给每行挂 "1x" 胶囊；只有价格不是标准价时
 // 显示方角的"价格 ×N"，分组说明和价格系数都放在提示里，数据仍可查看。
 export function ApiKeyGroupCell(props: ApiKeyGroupCellProps) {
   const { t } = useTranslation()
@@ -66,7 +66,7 @@ export function ApiKeyGroupCell(props: ApiKeyGroupCellProps) {
         tooltipContent={
           <span className='flex flex-col gap-0.5'>
             <span>
-              {group || t('keys.group.followAccountHint')}
+              {group || t('keys.group.followUserHint')}
               {description && ` · ${description}`}
             </span>
             {priceText && <span>{priceText}</span>}
@@ -82,7 +82,7 @@ export function ApiKeyGroupCell(props: ApiKeyGroupCellProps) {
         >
           <GroupBadge
             group={group}
-            label={group ? undefined : t('keys.group.followAccount')}
+            label={group ? undefined : t('keys.group.followUser')}
             className='px-0'
           />
           <GroupRatioBadge ratio={ratio} />
@@ -106,14 +106,18 @@ export function ApiKeyGroupCell(props: ApiKeyGroupCellProps) {
         }
       >
         <StatusBadge
-          label={t('keys.group.auto')}
+          label={t('Auto')}
           variant='info'
           copyable={false}
           className='px-0'
         />
       </TooltipTrigger>
       <TooltipContent>
-        <span className='text-xs'>{t('keys.group.autoHint')}</span>
+        <span className='text-xs'>
+          {t(
+            'Automatically selects the best available group with circuit breaker mechanism'
+          )}
+        </span>
       </TooltipContent>
     </Tooltip>
   )

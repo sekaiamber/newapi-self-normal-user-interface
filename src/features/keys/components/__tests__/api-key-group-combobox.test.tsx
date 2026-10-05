@@ -99,8 +99,8 @@ function getCommandItem(label: string): HTMLElement {
 }
 
 describe('API key group combobox Auto effect', () => {
-  // [user-ui] 倍率改为方角"Price ×N"，标准价不显示；自动线路不再有流光动画（审计 2.5 K5、品牌规范）
-  test('shows square price badges only for non-standard routes and no animated border', () => {
+  // [user-ui] 倍率改为方角"Price ×N"，标准价不显示；自动分组不再有流光动画（审计 2.5 K5、品牌规范）
+  test('shows square price badges only for non-standard groups and no animated border', () => {
     setReducedMotion(false)
     render(<Harness initialValue='auto' />)
 

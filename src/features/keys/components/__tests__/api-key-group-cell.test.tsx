@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-// [user-ui] 线路单元格的新约定（审计 2.5 K5）：不再给每行挂 "1x" 胶囊；
+// [user-ui] 分组单元格的新约定（审计 2.5 K5）：不再给每行挂 "1x" 胶囊；
 // 只有非标准价显示方角"Price ×N"，分组说明与价格系数放在提示里；去掉流光动画。
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -54,8 +54,8 @@ function CellHarness(props: {
   )
 }
 
-describe('API key route (group) table cell', () => {
-  test('labels the automatic route without a multiplier or animated border', async () => {
+describe('API key group table cell', () => {
+  test('labels the automatic group without a multiplier or animated border', async () => {
     const { container } = render(<CellHarness group='auto' ratio='自动' />)
     expect(screen.getByText('Auto')).toBeInTheDocument()
     expect(container).not.toHaveTextContent('自动')
@@ -63,7 +63,7 @@ describe('API key route (group) table cell', () => {
     await userEvent.tab()
     expect(
       await screen.findByText(
-        'Picks an available route automatically and switches in order when a call fails',
+        'Automatically selects the best available group with circuit breaker mechanism',
         { selector: '[data-slot="tooltip-content"] *' }
       )
     ).toBeVisible()
@@ -71,7 +71,7 @@ describe('API key route (group) table cell', () => {
 
   test('hides the standard-price multiplier and explains the price in the tooltip', async () => {
     const { container } = render(
-      <CellHarness group='default' ratio={1} description='Default route' />
+      <CellHarness group='default' ratio={1} description='Default group' />
     )
     expect(screen.getByText('default')).toBeInTheDocument()
     expect(container).not.toHaveTextContent('1x')
@@ -83,7 +83,7 @@ describe('API key route (group) table cell', () => {
       })
     ).toBeVisible()
     expect(
-      screen.getByText('default · Default route', {
+      screen.getByText('default · Default group', {
         selector: '[data-slot="tooltip-content"] *',
       })
     ).toBeVisible()
@@ -102,13 +102,13 @@ describe('API key route (group) table cell', () => {
     }
   )
 
-  test('labels an empty group as the account default without inventing a value', async () => {
+  test('labels an empty group as following the user group without inventing a value', async () => {
     render(<CellHarness group='' />)
-    expect(screen.getByText('Account default')).toBeInTheDocument()
+    expect(screen.getByText('Follow user group')).toBeInTheDocument()
     expect(screen.queryByText(/×|1x/)).not.toBeInTheDocument()
     await userEvent.tab()
     expect(
-      await screen.findByText("Uses your account's default route", {
+      await screen.findByText('Uses the group your account belongs to', {
         selector: '[data-slot="tooltip-content"] *',
       })
     ).toBeVisible()

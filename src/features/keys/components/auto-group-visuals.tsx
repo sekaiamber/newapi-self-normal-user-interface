@@ -33,7 +33,7 @@ type AutoGroupFlowBorderProps = {
   appearance?: 'default' | 'subtle'
 }
 
-// [user-ui] 自动线路的"流光边框"动画属于装饰性动效，品牌规范要求克制，不再渲染。
+// [user-ui] 自动分组的"流光边框"动画属于装饰性动效，品牌规范要求克制，不再渲染。
 // 保留组件与参数，调用方无需改动；恢复官方效果时还原本函数即可。
 export function AutoGroupFlowBorder(_props: AutoGroupFlowBorderProps) {
   return null
@@ -84,7 +84,7 @@ export function GroupRatioBadge(props: GroupRatioBadgeProps) {
   if (typeof props.ratio !== 'number') {
     return (
       <GroupMultiplierBadge
-        label={t('keys.group.auto')}
+        label={t('Auto')}
         className={cn(
           'min-w-0 rounded-sm',
           props.isAuto && 'border-primary/30 bg-primary/10 text-primary-ink'

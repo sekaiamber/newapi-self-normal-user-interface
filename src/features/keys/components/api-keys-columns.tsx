@@ -121,8 +121,7 @@ export function useApiKeysColumns(now: number): ColumnDef<ApiKey>[] {
     },
     {
       accessorKey: 'group',
-      // [user-ui] 用户侧把"分组"叫"线路"（审计 2.5 K5）
-      header: t('keys.column.group'),
+      header: t('Group'),
       cell: ({ row }) => {
         const apiKey = row.original
         const group = row.getValue('group') as string

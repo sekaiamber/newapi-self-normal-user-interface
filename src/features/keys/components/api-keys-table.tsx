@@ -111,7 +111,7 @@ type ApiKeysEmptyCopy = {
 }
 
 // [user-ui] 手机卡片精简（审计 2.5 K3/K5）：名称+状态、密钥+操作、额度、时间与过期；
-// 线路只在账户有多个可选线路时显示；模型/IP 限制只在设置了限制时显示。
+// 分组只在账户有多个可选分组时显示；模型/IP 限制只在设置了限制时显示。
 // 卡片改为品牌的 2px 边、小圆角。空状态带"创建第一个密钥"按钮（审计 2.5 K2）。
 function ApiKeysMobileList({
   table,
@@ -198,7 +198,7 @@ function ApiKeysMobileList({
               {showGroup && groupCell && (
                 <div className='flex min-w-0 items-center gap-2 text-sm'>
                   <span className='text-muted-foreground shrink-0'>
-                    {t('keys.column.group')}
+                    {t('Group')}
                   </span>
                   <div className='min-w-0 flex-1'>
                     {flexRender(
@@ -342,7 +342,7 @@ export function ApiKeysTable() {
     columns,
     enableRowSelection: true,
     columnFilters,
-    // [user-ui] 线路、模型、IP、时间默认隐藏（审计 2.5 K3）。原来恢复旧版默认列的
+    // [user-ui] 分组、模型、IP、时间默认隐藏（审计 2.5 K3）。原来恢复旧版默认列的
     // effect 已删除：新存储键下不存在旧版偏好。
     initialColumnVisibility: API_KEYS_DEFAULT_COLUMN_VISIBILITY,
     columnVisibilityStorageKey: API_KEYS_COLUMN_VISIBILITY_STORAGE_KEY,
@@ -357,7 +357,7 @@ export function ApiKeysTable() {
     ensurePageInRange,
   })
 
-  // [user-ui] 账户有多个可选线路时，手机卡片才显示线路（审计 2.5 K5 ①）
+  // [user-ui] 账户有多个可选分组时，手机卡片才显示分组（审计 2.5 K5 ①）
   const groupInfo = useUserGroupInfo()
   const showGroupOnMobile = Object.keys(groupInfo.ratios).length > 1
 

@@ -26,7 +26,7 @@ const { QueryClient, QueryClientProvider } =
 const { api } = await import('@/lib/api')
 const { ApiKeysProvider } = await import('../api-keys-provider')
 const { ApiKeysMutateDrawer } = await import('../api-keys-mutate-drawer')
-// [user-ui] 表单文案改用 keys 覆盖层（线路、批量创建数量、创建密钥）
+// [user-ui] 表单文案改用 keys 覆盖层（批量创建数量、创建密钥）
 const { overridesEn } = await import('@/i18n/overrides')
 
 const i18n = createInstance()
@@ -148,7 +148,7 @@ async function renderCreateDrawer(
   )
 }
 
-// [user-ui] 线路、自动线路顺序、批量数量收在"高级"里（审计 2.5 K6）
+// [user-ui] 分组、自动分组顺序、批量数量收在"高级"里（审计 2.5 K6）
 function openAdvanced(): void {
   fireEvent.click(findButton('Advanced', true))
 }
@@ -168,8 +168,8 @@ function findButton(text: string, required = true): HTMLButtonElement | null {
 function getControlByLabel(
   labelText: 'Name' | 'Number of keys'
 ): HTMLInputElement
-function getControlByLabel(labelText: 'Route'): HTMLButtonElement
-function getControlByLabel(labelText: 'Auto route order'): HTMLElement
+function getControlByLabel(labelText: 'Group'): HTMLButtonElement
+function getControlByLabel(labelText: 'Auto group order'): HTMLElement
 function getControlByLabel(labelText: string): HTMLElement {
   const label = [...document.querySelectorAll<HTMLLabelElement>('label')].find(
     (candidate) => candidate.textContent?.trim() === labelText
@@ -226,7 +226,7 @@ describe('API keys mutate drawer Auto group integration', () => {
     await renderCreateDrawer()
     openAdvanced()
 
-    const groupTrigger = getControlByLabel('Route')
+    const groupTrigger = getControlByLabel('Group')
     expect(groupTrigger.textContent?.includes('auto')).toBe(true)
     expect(
       document.body.textContent?.includes(
@@ -260,7 +260,7 @@ describe('API keys mutate drawer Auto group integration', () => {
     await renderCreateDrawer()
     openAdvanced()
 
-    const autoOrderControl = getControlByLabel('Auto route order')
+    const autoOrderControl = getControlByLabel('Auto group order')
     const addGroupTrigger = autoOrderControl.querySelector<HTMLButtonElement>(
       'button[role="combobox"]'
     )
@@ -277,7 +277,7 @@ describe('API keys mutate drawer Auto group integration', () => {
     )
     expect(findButton('Restore global Auto', true).disabled).toBe(false)
 
-    const groupTrigger = getControlByLabel('Route')
+    const groupTrigger = getControlByLabel('Group')
     selectComboboxOption(groupTrigger, 'Standard access')
     expect(document.querySelector('button[aria-label="Remove vip"]')).toBe(null)
     selectComboboxOption(groupTrigger, 'Automatic routing')
@@ -305,24 +305,24 @@ function hasLabel(text: string): boolean {
 }
 
 describe('API keys mutate drawer layout', () => {
-  test('keeps route, limits and bulk quantity behind Advanced on the first screen', async () => {
+  test('keeps group, limits and bulk quantity behind Advanced on the first screen', async () => {
     installApiFixtures([])
     await renderCreateDrawer()
 
     expect(hasLabel('Name')).toBe(true)
     expect(hasLabel('Expiration Time')).toBe(true)
     expect(hasLabel('Set a spending cap')).toBe(true)
-    for (const label of ['Route', 'Number of keys', 'Model Limits']) {
+    for (const label of ['Group', 'Number of keys', 'Model Limits']) {
       expect(hasLabel(label)).toBe(false)
     }
 
     openAdvanced()
-    for (const label of ['Route', 'Number of keys', 'Model Limits']) {
+    for (const label of ['Group', 'Number of keys', 'Model Limits']) {
       expect(hasLabel(label)).toBe(true)
     }
   })
 
-  test('hides the route field when only one route is available', async () => {
+  test('hides the group field when only one group is available', async () => {
     installApiFixtures([])
     await renderCreateDrawer({
       default: { desc: 'Standard access', ratio: 1 },
@@ -330,7 +330,7 @@ describe('API keys mutate drawer layout', () => {
     openAdvanced()
 
     expect(hasLabel('Model Limits')).toBe(true)
-    expect(hasLabel('Route')).toBe(false)
+    expect(hasLabel('Group')).toBe(false)
   })
 
   test('reopens Advanced when a field inside it fails validation', async () => {
@@ -339,7 +339,7 @@ describe('API keys mutate drawer layout', () => {
     await renderCreateDrawer()
     openAdvanced()
 
-    const autoOrderControl = getControlByLabel('Auto route order')
+    const autoOrderControl = getControlByLabel('Auto group order')
     const addGroupTrigger = autoOrderControl.querySelector<HTMLButtonElement>(
       'button[role="combobox"]'
     )
@@ -348,13 +348,13 @@ describe('API keys mutate drawer layout', () => {
     }
     selectComboboxOption(addGroupTrigger, 'Priority access')
     fireEvent.click(screen.getByRole('button', { name: 'Remove vip' }))
-    changeInput(getControlByLabel('Name'), 'needs-a-route')
+    changeInput(getControlByLabel('Name'), 'needs-a-group')
 
     openAdvanced()
-    expect(hasLabel('Auto route order')).toBe(false)
+    expect(hasLabel('Auto group order')).toBe(false)
 
     fireEvent.click(findButton('Create key', true))
-    await waitFor(() => expect(hasLabel('Auto route order')).toBe(true))
+    await waitFor(() => expect(hasLabel('Auto group order')).toBe(true))
     expect(createdPayloads).toHaveLength(0)
   })
 

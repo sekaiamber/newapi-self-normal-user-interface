@@ -367,7 +367,7 @@ export function ApiKeysMutateDrawer({
     : t('Enter quota in {{currency}}', { currency: currencyLabel })
   const autoGroupsMode = form.watch('auto_groups_mode')
   const unlimitedQuota = form.watch('unlimited_quota')
-  // [user-ui] 只有一个可选分组时不显示线路选择（审计 2.5 K5 ①）
+  // [user-ui] 只有一个可选分组时不显示分组选择（审计 2.5 K5 ①）
   const showGroupField = shouldShowGroupField(
     groups.map((group) => group.value),
     selectedGroup
@@ -379,8 +379,8 @@ export function ApiKeysMutateDrawer({
   }
 
   // [user-ui] 表单重排（审计 2.5 K6）：首屏只有名称、有效期、额度上限；
-  // 线路（分组）、自动线路顺序、失败切换、模型与 IP 限制、批量数量收进"高级"。
-  // 文案统一为"密钥 / 额度 / 线路"（原 zh 文案混用令牌、配额，且编辑说明误译为 "New API 密钥"）。
+  // 分组、自动分组顺序、跨分组重试、模型与 IP 限制、批量数量收进"高级"。
+  // 文案统一为"密钥 / 额度 / 分组"（原 zh 文案混用令牌、配额，且编辑说明误译为 "New API 密钥"）。
   return (
     <Sheet
       open={open}
@@ -588,7 +588,7 @@ export function ApiKeysMutateDrawer({
                         name='group'
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>{t('keys.form.groupLabel')}</FormLabel>
+                            <FormLabel>{t('Group')}</FormLabel>
                             <FormControl>
                               <ApiKeyGroupCombobox
                                 options={groups}
@@ -605,7 +605,7 @@ export function ApiKeysMutateDrawer({
                                     shouldDirty: true,
                                   })
                                 }}
-                                placeholder={t('keys.form.groupPlaceholder')}
+                                placeholder={t('keys.group.followUser')}
                               />
                             </FormControl>
                             <FormDescription>
@@ -623,9 +623,11 @@ export function ApiKeysMutateDrawer({
                         name='auto_groups'
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>{t('keys.form.autoOrder')}</FormLabel>
+                            <FormLabel>{t('Auto group order')}</FormLabel>
                             <FormDescription>
-                              {t('keys.form.autoOrderHint')}
+                              {t(
+                                'Choose and order the groups this API key will try.'
+                              )}
                             </FormDescription>
                             <FormControl>
                               <AutoGroupOrderEditor
@@ -668,7 +670,7 @@ export function ApiKeysMutateDrawer({
                           <FormItem className={sideDrawerSwitchItemClassName()}>
                             <div className='flex flex-col gap-0.5'>
                               <FormLabel className='text-sm'>
-                                {t('keys.form.crossGroupRetry')}
+                                {t('Cross-group retry')}
                               </FormLabel>
                               <FormDescription className='line-clamp-2 text-xs sm:line-clamp-none'>
                                 {t('keys.form.crossGroupRetryHint')}

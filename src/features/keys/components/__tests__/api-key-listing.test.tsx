@@ -374,7 +374,7 @@ it('shows only the everyday columns by default and keeps the rest in the column 
   ]) {
     expect(screen.getByRole('columnheader', { name })).toBeInTheDocument()
   }
-  for (const name of ['Route', 'Models', 'IP Restriction', 'Time']) {
+  for (const name of ['Group', 'Models', 'IP Restriction', 'Time']) {
     expect(screen.queryByRole('columnheader', { name })).not.toBeInTheDocument()
   }
   expect(screen.queryByText('1x')).not.toBeInTheDocument()
@@ -395,7 +395,7 @@ it('keeps saved column choices under the new storage key and ignores the old one
     screen.getByRole('columnheader', { name: 'Models' })
   ).toBeInTheDocument()
   expect(
-    screen.queryByRole('columnheader', { name: 'Route' })
+    screen.queryByRole('columnheader', { name: 'Group' })
   ).not.toBeInTheDocument()
 })
 
@@ -513,7 +513,7 @@ it.each([
   )
 })
 
-it('keeps the mobile card to the essentials when there is one route and no restrictions', async () => {
+it('keeps the mobile card to the essentials when there is one group and no restrictions', async () => {
   const matchMedia = window.matchMedia
   vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({
     ...matchMedia(query),
@@ -587,7 +587,7 @@ it('keeps mobile quota readable and opens complete model and IP restrictions by 
   expect(within(details).getByText('2001:db8::1')).toBeVisible()
 })
 
-it('labels the route on mobile cards when the account has several routes', async () => {
+it('labels the group on mobile cards when the account has several groups', async () => {
   const matchMedia = window.matchMedia
   vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({
     ...matchMedia(query),
@@ -603,7 +603,7 @@ it('labels the route on mobile cards when the account has several routes', async
       },
     }
   )
-  expect(await screen.findByText('Route')).toBeInTheDocument()
+  expect(await screen.findByText('Group')).toBeInTheDocument()
   expect(screen.getByText('default')).toBeInTheDocument()
   expect(screen.queryByText('1x')).not.toBeInTheDocument()
 })
