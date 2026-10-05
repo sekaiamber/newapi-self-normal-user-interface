@@ -16,9 +16,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, notFound } from '@tanstack/react-router'
 import { z } from 'zod'
 
+import { isUserUiFeatureEnabled } from '@/config/user-ui-features'
 import { Wallet } from '@/features/wallet'
 
 const walletSearchSchema = z.object({
@@ -26,6 +27,10 @@ const walletSearchSchema = z.object({
 })
 
 export const Route = createFileRoute('/_authenticated/wallet/')({
+  // [user-ui] 功能开关：钱包禁用时返回 404
+  beforeLoad: () => {
+    if (!isUserUiFeatureEnabled('wallet')) throw notFound()
+  },
   component: RouteComponent,
   validateSearch: walletSearchSchema,
 })

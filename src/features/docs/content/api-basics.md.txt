@@ -1,0 +1,223 @@
+<!--
+Maintainer note (not rendered). Facts on this page come from the official
+New API docs mirror, docs/official/en/:
+- guide/feature-guide/user/api.md                    (/v1 base URL, Bearer auth, Claude x-api-key example,
+                                                      Gemini ?key= example, supported endpoint table)
+- api.md                                             (AI model API overview)
+- api/ai-model/chat/openai/createchatcompletion.md   (+ .schema.json: required model/messages, stream,
+                                                      400/429 error object with message/type/param/code)
+- api/ai-model/chat/openai/createresponse.md         (+ .schema.json: required model, input string or array)
+- api/ai-model/chat/createmessage.md                 (+ .schema.json: anthropic-version required,
+                                                      x-api-key optional / Bearer, required max_tokens)
+- api/ai-model/chat/gemini/geminirelayv1beta.md      (+ .schema.json: generateContent,
+                                                      streamGenerateContent?alt=sse)
+- api/ai-model/models/list/listmodels.md             (+ .schema.json: response format chosen by headers, 401)
+- api/ai-model/models/list/listmodelsgemini.md       (GET /v1beta/models)
+- guide/feature-guide/user/chat-apps.md              (base URL vs. full endpoint for apps)
+- guide/feature-guide/user/log.md                    (stream flag and first response time in usage logs)
+Root address for Claude/Gemini native clients: official-ui/web/src/features/keys/components/dialogs/
+cc-switch-dialog.tsx @ v1.0.0-rc.37 (Claude/Gemini use the origin, Codex uses origin + /v1).
+-->
+
+{{SITE_NAME}} 提供统一的模型接口：同一个 API 密钥，可以按 OpenAI、Claude、Gemini 三种请求格式调用。能用哪些模型取决于管理员的配置，以及你的密钥设置（分组、模型限制）。
+
+## 地址规则
+
+| 请求格式 | 客户端里填写的地址 | 完整请求路径示例 |
+| --- | --- | --- |
+| OpenAI 兼容（Chat Completions、Responses 等） | `{{BASE_URL}}/v1` | `{{BASE_URL}}/v1/chat/completions` |
+| Claude 原生（Messages） | `{{BASE_URL}}` | `{{BASE_URL}}/v1/messages` |
+| Gemini 原生 | `{{BASE_URL}}` | `{{BASE_URL}}/v1beta/models/模型名:generateContent` |
+
+- 应用里要求填「Base URL」「API 地址」时，一般填 `{{BASE_URL}}/v1`。
+- 少数应用要求填写完整的接口地址，这时填 `{{BASE_URL}}/v1/chat/completions`。
+- Claude Code 这类 Claude 原生客户端、以及 Gemini 原生客户端，通常只需要根地址 `{{BASE_URL}}`。
+
+本页的命令示例都先设置下面两个环境变量（macOS / Linux 终端；Windows 可用 Git Bash 或 WSL）：
+
+```bash
+export BASE_URL="{{BASE_URL}}"
+export API_KEY="sk-替换为你的密钥"
+```
+
+示例中的模型名只是占位，请换成 [模型列表](#列出可用模型) 里实际存在的模型。
+
+## 认证方式
+
+所有接口都用你在「API 密钥」页面创建的密钥认证。最通用的写法是 Bearer Token：
+
+```http
+Authorization: Bearer sk-xxxxxxxx
+```
+
+各原生格式也可以使用自己习惯的写法：
+
+| 格式 | 原生写法 |
+| --- | --- |
+| Claude Messages | 请求头 `x-api-key: sk-xxxxxxxx`，同时必须带 `anthropic-version` 请求头 |
+| Gemini | URL 参数 `?key=sk-xxxxxxxx` |
+
+## 列出可用模型
+
+```bash
+curl "$BASE_URL/v1/models" \
+  -H "Authorization: Bearer $API_KEY"
+```
+
+返回 OpenAI 格式的列表：`data` 数组中每项的 `id` 是模型名，另有 `object`、`created`、`owned_by` 字段。
+
+同一个 `/v1/models` 接口会根据请求方式返回不同格式：
+
+- 带 `x-api-key` 和 `anthropic-version` 请求头时，返回 Claude 格式；
+- 带 `x-goog-api-key` 请求头或 `key` 参数时，返回 Gemini 格式；
+- 其他情况返回 OpenAI 格式。
+
+查询单个模型用 `GET /v1/models/模型名`，模型不存在时返回 `model_not_found` 错误。Gemini 格式的列表也可以直接请求 `GET /v1beta/models`：
+
+```bash
+curl "$BASE_URL/v1beta/models" \
+  -H "Authorization: Bearer $API_KEY"
+```
+
+## Chat Completions（OpenAI 兼容）
+
+`POST /v1/chat/completions`，必填 `model` 和 `messages`：
+
+```bash
+curl "$BASE_URL/v1/chat/completions" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $API_KEY" \
+  -d '{
+    "model": "gpt-4o-mini",
+    "messages": [
+      {"role": "system", "content": "你是一个简洁的助手。"},
+      {"role": "user", "content": "什么是 API 网关？"}
+    ],
+    "temperature": 0.7
+  }'
+```
+
+常用参数：
+
+| 参数 | 说明 |
+| --- | --- |
+| `stream` | 是否流式返回，默认 `false` |
+| `temperature` / `top_p` | 采样参数，默认都是 `1` |
+| `max_tokens` / `max_completion_tokens` | 限制生成的 Token 数 |
+| `tools` / `tool_choice` | 工具（函数）调用 |
+| `response_format` | 指定输出格式，例如 JSON |
+| `reasoning_effort` | 推理强度 `low` / `medium` / `high`，用于支持推理的模型 |
+
+## Responses（OpenAI 兼容）
+
+`POST /v1/responses`，必填 `model`；`input` 可以是一段文字，也可以是消息数组：
+
+```bash
+curl "$BASE_URL/v1/responses" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $API_KEY" \
+  -d '{
+    "model": "gpt-4o-mini",
+    "instructions": "用中文回答，不超过三句话。",
+    "input": "解释一下什么是流式输出。"
+  }'
+```
+
+其他常用字段：`previous_response_id`（接着上一轮回复继续对话）、`tools`、`reasoning`、`max_output_tokens`、`stream`。
+
+## Claude Messages（原生格式）
+
+`POST /v1/messages`，必填 `model`、`messages` 和 `max_tokens`，请求头必须带 `anthropic-version`：
+
+```bash
+curl "$BASE_URL/v1/messages" \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: $API_KEY" \
+  -H "anthropic-version: 2023-06-01" \
+  -d '{
+    "model": "claude-3-5-sonnet-20241022",
+    "max_tokens": 1024,
+    "messages": [{"role": "user", "content": "你好"}]
+  }'
+```
+
+- `x-api-key` 也可以换成 `Authorization: Bearer $API_KEY`。
+- 其他字段：`system`、`temperature`、`top_p`、`top_k`、`stop_sequences`、`tools`、`thinking`、`stream`。
+- 必要时 {{SITE_NAME}} 会把请求转换为上游渠道使用的协议，客户端按 Claude 格式收发即可。
+
+## Gemini（原生格式）
+
+路径格式为 `/v1beta/models/模型名:操作`，生成内容用 `generateContent`：
+
+```bash
+curl "$BASE_URL/v1beta/models/gemini-2.5-pro:generateContent?key=$API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "contents": [{"parts": [{"text": "你好"}]}]
+  }'
+```
+
+请求体还支持 `systemInstruction`、`generationConfig`、`safetySettings`、`tools`。带 `/v1` 前缀的写法 `/v1/models/模型名:操作` 同样可用。
+
+## 流式输出
+
+| 格式 | 开启方式 |
+| --- | --- |
+| Chat Completions、Responses | 请求体加 `"stream": true` |
+| Claude Messages | 请求体加 `"stream": true` |
+| Gemini | 操作改为 `streamGenerateContent`，并加参数 `alt=sse` |
+
+流式响应以 SSE（Server-Sent Events）的形式分段返回。用 curl 测试时加上 `-N` 关闭输出缓冲，就能看到内容逐段出现：
+
+```bash
+curl -N "$BASE_URL/v1/chat/completions" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $API_KEY" \
+  -d '{
+    "model": "gpt-4o-mini",
+    "stream": true,
+    "messages": [{"role": "user", "content": "从 1 数到 10"}]
+  }'
+```
+
+Gemini 的流式写法：
+
+```bash
+curl -N "$BASE_URL/v1beta/models/gemini-2.5-pro:streamGenerateContent?alt=sse&key=$API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"contents": [{"parts": [{"text": "从 1 数到 10"}]}]}'
+```
+
+在「使用日志」里，流式请求会单独标出，并可能显示首字时间，方便确认请求是否真的以流式方式完成。
+
+## 其他接口
+
+以下接口同样使用 `{{BASE_URL}}` 加路径、Bearer 认证。能否调用取决于管理员是否配置了对应模型。
+
+| 功能 | 方法与路径 |
+| --- | --- |
+| 文本补全 | `POST /v1/completions` |
+| 向量嵌入 | `POST /v1/embeddings` |
+| 图片生成 / 编辑 | `POST /v1/images/generations`、`POST /v1/images/edits` |
+| 语音转文字 / 音频翻译 | `POST /v1/audio/transcriptions`、`POST /v1/audio/translations` |
+| 文字转语音 | `POST /v1/audio/speech` |
+| 重排序 | `POST /v1/rerank` |
+| 内容审核 | `POST /v1/moderations` |
+| 实时对话（WebSocket） | `GET /v1/realtime` |
+
+## 错误响应
+
+请求失败时，返回的 JSON 中包含一个 `error` 对象：
+
+```json
+{
+  "error": {
+    "message": "错误说明",
+    "type": "错误类型",
+    "param": null,
+    "code": "错误代码"
+  }
+}
+```
+
+接口文档中列出的典型状态码：`400` 请求参数错误，`401` 认证失败，`429` 请求频率受限。先看 `message` 字段了解原因，再对照 [常见问题](/docs/faq) 排查。

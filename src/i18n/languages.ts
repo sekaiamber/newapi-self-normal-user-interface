@@ -16,14 +16,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+// [user-ui] 只提供简体中文与英文两种界面语言（owner 2026-10-05 决定）；
+// 官方的 fr / ru / ja / vi / zhTW 语言文件保留在仓库中但不加载。
 export const INTERFACE_LANGUAGE_OPTIONS = [
   { code: 'zhCN', label: '简体中文' },
   { code: 'en', label: 'English' },
-  { code: 'fr', label: 'Français' },
-  { code: 'ru', label: 'Русский' },
-  { code: 'ja', label: '日本語' },
-  { code: 'vi', label: 'Tiếng Việt' },
-  { code: 'zhTW', label: '繁體中文' },
 ] as const
 
 export type InterfaceLanguageCode =
@@ -42,6 +39,10 @@ export function normalizeInterfaceLanguage(value?: string | null): string {
     normalized = 'zhTW'
   }
   if (value === 'zh-CN' || value === 'zh-Hans' || value === 'zhCN') {
+    normalized = 'zhCN'
+  }
+  // [user-ui] 不提供繁体中文界面，繁体偏好归入简体中文而不是回退到英文
+  if (normalized === 'zhTW') {
     normalized = 'zhCN'
   }
 
@@ -63,14 +64,7 @@ export function normalizeInterfaceLanguage(value?: string | null): string {
 export function convertDetectedLanguage(value: string): string {
   const lower = value.trim().replaceAll('_', '-').toLowerCase()
   if (!lower.startsWith('zh')) return value
-  if (
-    lower === 'zh-tw' ||
-    lower === 'zh-hk' ||
-    lower === 'zh-mo' ||
-    lower.startsWith('zh-hant')
-  ) {
-    return 'zhTW'
-  }
+  // [user-ui] 不提供繁体中文界面：所有中文浏览器语言都映射到简体中文
   return 'zhCN'
 }
 

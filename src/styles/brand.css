@@ -1,0 +1,234 @@
+/*
+ * [user-ui] SwarmRouter 品牌主题（本仓库新增文件，非官方代码）。
+ *
+ * 由 index.css 在 theme.css / theme-presets.css 之后引入，重新定义默认 token，
+ * 让所有人第一眼看到的就是品牌外观（不是预设，不依赖 cookie/JS）。theme.css 保持官方原样。
+ *
+ * 设计语言（2026-10-05 owner 试版方向："圆角少一点，边缘厚一点，有比较厚重的按钮感觉"）：
+ * - 圆角小：--radius = 4px；只有头像、状态点、开关保留圆形。
+ * - 边缘厚：按钮、输入框、卡片、弹层、Tab 用 2px 边。浅色模式主要表面用近黑 #202226（--edge），
+ *   卡片/输入框用稍浅的强灰（--edge-soft / --input）；暗色模式用浅一些的中性灰。
+ *   表格行分隔线仍是 1px --border。
+ * - 按钮厚重：实心 + 2px 边 + 硬投影（无模糊）。悬停上浮 1px，按下沉入投影；减少动态效果时不位移。
+ * - 品牌色：主题金 #d6a51d（--primary，只做底色，上面的字用近黑）；浅色背景上的金色文字/链接
+ *   一律用深金 --primary-ink（对比度 ≥ 4.5:1）。
+ * - 字体：IBM Plex Sans（界面）+ JetBrains Mono（代码/数字），均为 SIL OFL，npm 自托管；
+ *   中文走系统字体栈，不加载中文 webfont。
+ *
+ * 对比度（WCAG 2.x）计算见 WP-DESIGN 报告；改值后请重新核算。
+ */
+@import '@fontsource-variable/ibm-plex-sans';
+@import '@fontsource-variable/jetbrains-mono';
+
+/* theme.css 的 --font-sans 写在 @theme inline 里（值会被内联进 font-sans 工具类），
+ * 所以这里也必须用 @theme inline 覆盖；后出现的同名变量生效。 */
+@theme inline {
+  --font-sans:
+    'IBM Plex Sans Variable', 'IBM Plex Sans', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC',
+    'Source Han Sans SC', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono:
+    'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, SFMono-Regular,
+    Menlo, Consolas, 'PingFang SC', 'Microsoft YaHei', monospace;
+
+  /* 品牌新增的语义色，供组件使用：text-primary-ink、bg-primary-hover、border-edge 等 */
+  --color-primary-ink: var(--primary-ink);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-edge: var(--primary-edge);
+  --color-edge: var(--edge);
+  --color-edge-soft: var(--edge-soft);
+}
+
+:root {
+  /* 原生控件、滚动条与 SVG 图片（如默认 Logo /favicon.svg 里的 prefers-color-scheme）跟随站内明暗 */
+  color-scheme: light;
+  --radius: 0.25rem;
+
+  /* 画布：暖调纸白；卡片/弹层纯白 */
+  --background: oklch(0.976 0.003 85); /* #F8F7F5 */
+  --foreground: oklch(0.252 0.008 264.4); /* #202226 品牌近黑 */
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.252 0.008 264.4);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.252 0.008 264.4);
+
+  /* 主色 = 品牌金，只做底色；上面的字用近黑（7.0:1） */
+  --primary: oklch(0.747 0.147 86); /* #D6A51C */
+  --primary-foreground: oklch(0.252 0.008 264.4);
+  --primary-hover: oklch(0.79 0.14 88); /* #E0B43E */
+  /* 深金：浅色背景上的金色文字/链接/焦点环（白底 5.6:1，纸白底 5.2:1） */
+  --primary-ink: oklch(0.52 0.1 80); /* #876114 */
+  /* 主按钮的边与硬投影 */
+  --primary-edge: oklch(0.252 0.008 264.4);
+
+  --secondary: oklch(0.94 0.004 264); /* #EAEBEE */
+  --secondary-foreground: oklch(0.252 0.008 264.4);
+  --muted: oklch(0.952 0.004 85); /* #F0EFEC */
+  --muted-foreground: oklch(0.5 0.01 264); /* #606369，纸白底 5.6:1 */
+  /* 悬停/选中的浅金底 */
+  --accent: oklch(0.95 0.04 92); /* #F8EED1 */
+  --accent-foreground: oklch(0.252 0.008 264.4);
+
+  /* 语义色：浅色模式下都可作白底文字（≥ 4.5:1），实心底配白字 */
+  --destructive: oklch(0.55 0.2 27); /* #CC2827 */
+  --destructive-foreground: oklch(1 0 0);
+  --success: oklch(0.52 0.13 150); /* #1D7D3E */
+  --success-foreground: oklch(1 0 0);
+  /* 警告色偏橙（色相 55），与品牌金（86）拉开 */
+  --warning: oklch(0.54 0.13 55); /* #A6560A */
+  --warning-foreground: oklch(1 0 0);
+  --info: oklch(0.52 0.14 252); /* #1B6AB6 */
+  --info-foreground: oklch(1 0 0);
+  --neutral: oklch(0.58 0.01 264);
+  --neutral-foreground: oklch(1 0 0);
+
+  /* 边：--border 是 1px 分隔线；--input 输入框边（≥ 3:1）；
+   * --edge 按钮/弹层的粗边；--edge-soft 卡片的粗边 */
+  --border: oklch(0.88 0.005 264); /* #D6D7DB */
+  --input: oklch(0.58 0.01 264); /* #777A80，白底 4.3:1 */
+  --edge: oklch(0.252 0.008 264.4);
+  --edge-soft: oklch(0.58 0.01 264);
+  --ring: oklch(0.52 0.1 80);
+
+  /* 硬投影颜色（无模糊的偏移块） */
+  --shadow-color: oklch(0.252 0.008 264.4);
+
+  /* 图表：金 / 石板蓝 / 青 / 铁锈 / 紫；2–5 在白底可作文字（≥ 4.5:1） */
+  --chart-1: oklch(0.68 0.13 82); /* #C08F22 */
+  --chart-2: oklch(0.45 0.06 264); /* #445577 */
+  --chart-3: oklch(0.52 0.085 195); /* #117878 */
+  --chart-4: oklch(0.55 0.15 40); /* #B74B21 */
+  --chart-5: oklch(0.52 0.14 300); /* #7652AC */
+  --overview-accent-1: var(--chart-1);
+  --overview-accent-2: var(--chart-2);
+  --overview-accent-3: var(--chart-3);
+
+  --sidebar: oklch(0.958 0.004 85); /* #F2F1EE */
+  --sidebar-foreground: oklch(0.252 0.008 264.4);
+  --sidebar-primary: oklch(0.747 0.147 86);
+  --sidebar-primary-foreground: oklch(0.252 0.008 264.4);
+  --sidebar-accent: oklch(0.95 0.04 92);
+  --sidebar-accent-foreground: oklch(0.252 0.008 264.4);
+  --sidebar-border: oklch(0.88 0.005 264);
+  --sidebar-ring: oklch(0.52 0.1 80);
+
+  --skeleton-base: oklch(0.94 0.004 85);
+  --skeleton-highlight: oklch(0.97 0.003 85);
+
+  /* theme.css 用 color-mix(in oklch, foreground, background) 推导表格底色；品牌前景（冷）与
+   * 画布（暖）色相相差约 180°，在 oklch 里混合会偏出杂色，这里直接给出中性值。 */
+  --table-header: oklch(0.948 0.004 85);
+  --table-header-hover: oklch(0.932 0.004 85);
+  --table-disabled: oklch(0.955 0.003 85);
+  --table-disabled-hover: oklch(0.942 0.003 85);
+  --table-disabled-border: oklch(0.8 0.005 264);
+}
+
+.dark {
+  color-scheme: dark;
+  /* 暗色：冷调近黑画布，卡片 = 品牌近黑 #202226，文字 = 暗色 logo 的纸白 */
+  --background: oklch(0.195 0.006 264); /* #131518 */
+  --foreground: oklch(0.955 0.007 85); /* #F2F0EB */
+  --card: oklch(0.252 0.008 264.4); /* #202226 */
+  --card-foreground: oklch(0.955 0.007 85);
+  --popover: oklch(0.275 0.008 264); /* #26282C */
+  --popover-foreground: oklch(0.955 0.007 85);
+
+  --primary: oklch(0.747 0.147 86);
+  --primary-foreground: oklch(0.252 0.008 264.4);
+  --primary-hover: oklch(0.79 0.14 88);
+  /* 暗底上金色本身就够（8.1:1） */
+  --primary-ink: oklch(0.747 0.147 86);
+  /* 暗色下主按钮的边与投影用深金，像一块有厚度的金属键 */
+  --primary-edge: oklch(0.5 0.1 80); /* #815C0A */
+
+  --secondary: oklch(0.31 0.008 264); /* #2E3034 */
+  --secondary-foreground: oklch(0.955 0.007 85);
+  --muted: oklch(0.285 0.008 264); /* #282A2E */
+  --muted-foreground: oklch(0.74 0.01 264); /* #A8ABB1 */
+  --accent: oklch(0.31 0.04 86); /* #392F18 */
+  --accent-foreground: oklch(0.955 0.007 85);
+
+  /* 暗色下语义色变亮，实心底配近黑字 */
+  --destructive: oklch(0.68 0.18 25); /* #F3625D */
+  --destructive-foreground: oklch(0.252 0.008 264.4);
+  --success: oklch(0.74 0.15 152); /* #54C57A */
+  --success-foreground: oklch(0.252 0.008 264.4);
+  --warning: oklch(0.76 0.14 62); /* #F09B48 */
+  --warning-foreground: oklch(0.252 0.008 264.4);
+  --info: oklch(0.72 0.12 245); /* #5EACEB */
+  --info-foreground: oklch(0.252 0.008 264.4);
+  --neutral: oklch(0.62 0.01 264);
+  --neutral-foreground: oklch(0.252 0.008 264.4);
+
+  --border: oklch(0.34 0.008 264); /* #36383C */
+  --input: oklch(0.56 0.01 264); /* #71747B，卡片底 3.4:1 */
+  --edge: oklch(0.64 0.01 264); /* #898C92 */
+  --edge-soft: oklch(0.42 0.01 264); /* #4A4D53 */
+  --ring: oklch(0.747 0.147 86);
+
+  --shadow-color: oklch(0.42 0.01 264); /* #4A4D53，比画布亮才看得见 */
+
+  --chart-1: oklch(0.78 0.15 86);
+  --chart-2: oklch(0.72 0.06 264);
+  --chart-3: oklch(0.74 0.11 195);
+  --chart-4: oklch(0.72 0.15 40);
+  --chart-5: oklch(0.72 0.13 300);
+  --overview-accent-1: var(--chart-1);
+  --overview-accent-2: var(--chart-2);
+  --overview-accent-3: var(--chart-3);
+
+  --sidebar: oklch(0.172 0.006 264); /* #0E1013 */
+  --sidebar-foreground: oklch(0.955 0.007 85);
+  --sidebar-primary: oklch(0.747 0.147 86);
+  --sidebar-primary-foreground: oklch(0.252 0.008 264.4);
+  --sidebar-accent: oklch(0.31 0.04 86);
+  --sidebar-accent-foreground: oklch(0.955 0.007 85);
+  --sidebar-border: oklch(0.34 0.008 264);
+  --sidebar-ring: oklch(0.747 0.147 86);
+
+  --skeleton-base: oklch(0.3 0.008 264);
+  --skeleton-highlight: oklch(0.36 0.008 264);
+
+  --table-header: oklch(0.235 0.007 264);
+  --table-header-hover: oklch(0.262 0.008 264);
+  --table-disabled: oklch(0.225 0.006 264);
+  --table-disabled-hover: oklch(0.245 0.007 264);
+  --table-disabled-border: oklch(0.4 0.008 264);
+}
+
+/* 金色文字的兜底：浅色背景上金色字只有 2.3:1。功能页里沿用官方的 text-primary
+ * 一律改走深金 --primary-ink（暗色模式下 --primary-ink 就是金色，结果不变）。
+ * 新代码请直接用 text-primary-ink。 */
+@layer utilities {
+  .text-primary {
+    color: var(--primary-ink);
+  }
+  .text-primary\/60 {
+    color: color-mix(in oklab, var(--primary-ink) 60%, transparent);
+  }
+  @media (hover: hover) {
+    .hover\:text-primary:hover {
+      color: var(--primary-ink);
+    }
+    .hover\:text-primary\/80:hover {
+      color: color-mix(in oklab, var(--primary-ink) 80%, transparent);
+    }
+  }
+}
+
+/* index.css（官方）里有两条未分层的微交互规则，会盖过组件的工具类：
+ * 卡片悬停上浮 + 柔和阴影、按钮按下缩放 0.98。与硬边/硬投影风格冲突，这里撤回到组件自身的样式。
+ * 选择器特异性必须高于官方规则（brand.css 在 index.css 自身规则之前输出）。 */
+@media (prefers-reduced-motion: no-preference) {
+  @media (min-width: 641px) {
+    :root [data-slot='card'][data-slot]:not([data-card-hover='false']):hover {
+      transform: revert-layer;
+      box-shadow: revert-layer;
+    }
+  }
+
+  :root [data-slot='button']:not(:disabled):active {
+    transform: revert-layer;
+  }
+}

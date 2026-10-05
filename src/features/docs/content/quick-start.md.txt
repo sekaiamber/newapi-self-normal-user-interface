@@ -1,0 +1,101 @@
+<!--
+Maintainer note (not rendered). Facts on this page come from the official
+New API docs mirror, docs/official/en/:
+- guide/feature-guide/user/auth.md          (sign-in, sign-up, 2FA, admin-controlled login options)
+- guide/feature-guide/user/token.md         (creating and copying API keys, key safety)
+- guide/feature-guide/user/api.md           (/v1 base URL, Bearer auth, chat completions example)
+- api/ai-model/models/list/listmodels.md    (+ .schema.json: GET /v1/models, data[].id)
+- guide/feature-guide/user/log.md           (usage log columns, filters, details)
+- guide/feature-guide/user/chat-apps.md     (key must be enabled / have quota / not expired)
+- guide/feature-guide/user/dashboard.md     (quick start: add balance in the wallet before the first call)
+- guide/feature-guide/user/wallet.md        (wallet shows balance; online top-up and redemption codes)
+UI labels and routes follow user-ui (src/hooks/use-sidebar-data.ts).
+-->
+
+按下面五步操作，几分钟就能用 {{SITE_NAME}} 发出第一个模型请求：
+
+1. 注册并登录
+2. 创建 API 密钥
+3. 确认 API 地址
+4. 用 curl 发送请求
+5. 在使用日志里核对这次调用
+
+## 第 1 步：注册并登录
+
+- 打开 [登录页](/sign-in)，用用户名或邮箱加密码登录；还没有账号就进入 [注册页](/sign-up)。
+- 页面上显示哪些登录方式（第三方账号、Passkey 等），以及注册时是否需要邮箱验证码、人机验证，都由管理员配置。
+- 如果找不到注册入口，说明本站没有开放自助注册，请联系管理员开通账号。
+- 账号开启了两步验证（2FA）时，登录还需要输入一次性验证码或备用码。
+
+## 第 2 步：创建 API 密钥
+
+API 密钥（也叫令牌）是程序调用 {{SITE_NAME}} 的凭证。
+
+1. 登录后点击左侧导航的「API 密钥」，或直接打开 [/keys](/keys)。
+2. 点击「创建 API 密钥」，填一个便于辨认的名称，例如 `my-laptop`。
+3. 额度、过期时间、模型限制、IP 白名单、分组等选项可以先保持默认，含义见 [令牌与额度](/docs/tokens-and-quota)。
+4. 保存后，在列表里点击该密钥，或在行菜单中选择「复制密钥」，得到以 `sk-` 开头的完整密钥。查看完整密钥时可能需要先通过安全验证。
+
+调用会消耗账户余额。可以在左侧导航的「钱包」查看当前余额；余额不足时，按本站开放的方式在线充值或使用兑换码，详见 [令牌与额度](/docs/tokens-and-quota#充值与余额)。
+
+> API 密钥等同于密码：不要提交到代码仓库，也不要出现在截图、日志或聊天记录里。一旦怀疑泄露，马上删除并重新创建。
+
+## 第 3 步：确认 API 地址
+
+{{SITE_NAME}} 的 API 地址如下：
+
+| 用途 | 地址 |
+| --- | --- |
+| OpenAI 兼容客户端或 SDK 的 Base URL | `{{BASE_URL}}/v1` |
+| Claude、Gemini 原生客户端的根地址 | `{{BASE_URL}}` |
+
+大多数应用只需要填写 `{{BASE_URL}}/v1` 和 API 密钥。各接口的完整路径见 [API 基础](/docs/api-basics)。
+
+## 第 4 步：发送第一个请求
+
+先把地址和密钥存成环境变量（macOS / Linux 终端；Windows 可以在 Git Bash 或 WSL 中执行）：
+
+```bash
+export BASE_URL="{{BASE_URL}}"
+export API_KEY="sk-替换为你的密钥"
+```
+
+查询当前可用的模型：
+
+```bash
+curl "$BASE_URL/v1/models" \
+  -H "Authorization: Bearer $API_KEY"
+```
+
+返回结果 `data` 数组里每一项的 `id` 就是模型名。挑一个替换下面请求中的 `gpt-4o-mini`：
+
+```bash
+curl "$BASE_URL/v1/chat/completions" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $API_KEY" \
+  -d '{
+    "model": "gpt-4o-mini",
+    "messages": [{"role": "user", "content": "你好，请用一句话介绍你自己"}]
+  }'
+```
+
+返回 JSON 中的 `choices[0].message.content` 就是模型的回答。如果收到错误，先对照 [常见问题](/docs/faq) 排查。
+
+> 只想先看看模型效果？登录后打开 [游乐场](/playground) 直接在网页里对话，不需要写代码。
+
+## 第 5 步：查看使用日志
+
+点击左侧导航的「使用日志」（[/usage-logs/common](/usage-logs/common)），刚才的请求会出现在列表里：
+
+- 请求时间、所用的令牌（API 密钥名称）、模型，以及是否为流式请求；
+- 输入与输出的 Token 数；
+- 这次请求消耗的额度（费用）；
+- 响应耗时，流式请求还可能显示首字时间。
+
+点击一条记录可以看到详情，例如请求 ID、计费明细或错误原因。列表支持按时间、模型、分组、API 密钥名称和请求 ID 筛选。
+
+## 下一步
+
+- [API 基础](/docs/api-basics)：OpenAI、Claude、Gemini 三种格式的调用方式与流式输出
+- [令牌与额度](/docs/tokens-and-quota)：API 密钥各项设置，以及账户余额与密钥额度的区别
+- [客户端接入](/docs/clients)：Claude Code、Codex CLI、Cherry Studio、CC Switch 的配置方法

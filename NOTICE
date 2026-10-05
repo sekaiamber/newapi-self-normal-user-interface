@@ -18,7 +18,13 @@ Additional upstream file:
     from new-api pkg/billingexpr/testdata/frontend_simulation.json @ v1.0.0-rc.37
 
 Modifications: admin-only features removed so that this UI serves regular
-users only; administration stays in the official New API UI.
+users only; administration stays in the official New API UI. Rebranded
+and restyled as SwarmRouter (see UPSTREAM.md).
+
+Bundled fonts (SIL Open Font License 1.1, license text in each npm package):
+  IBM Plex Sans   Copyright 2019 IBM Corp.  (@fontsource-variable/ibm-plex-sans)
+  JetBrains Mono  Copyright 2020 The JetBrains Mono Project Authors
+                  (@fontsource-variable/jetbrains-mono)
 
 This program is distributed under the GNU AGPLv3. If you run a modified
 version as a network service, you must offer its Corresponding Source to

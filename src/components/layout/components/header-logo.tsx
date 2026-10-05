@@ -16,6 +16,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+// [user-ui] 默认 Logo 时显示 SwarmRouter 图标（明暗两版）
+import { isDefaultLogo } from '@/assets/brand'
+import { BrandIcon } from '@/assets/brand-logo'
 import { cn } from '@/lib/utils'
 
 interface HeaderLogoProps {
@@ -37,13 +40,28 @@ export function HeaderLogo({
   logoLoaded,
   className,
 }: HeaderLogoProps) {
+  const visibility = !loading && logoLoaded ? 'opacity-100' : 'opacity-0'
+  // [user-ui] 品牌图标是六边形，不裁成圆形
+  if (isDefaultLogo(src)) {
+    return (
+      <BrandIcon
+        alt={alt}
+        className={cn(
+          'h-6 w-6 object-contain transition-opacity duration-200',
+          visibility,
+          className,
+          'rounded-none'
+        )}
+      />
+    )
+  }
   return (
     <img
       src={src}
       alt={alt}
       className={cn(
         'h-6 w-6 rounded-full transition-opacity duration-200',
-        !loading && logoLoaded ? 'opacity-100' : 'opacity-0',
+        visibility,
         className
       )}
     />

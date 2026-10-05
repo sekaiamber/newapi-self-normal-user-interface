@@ -1,0 +1,109 @@
+<!--
+Maintainer note (not rendered). Facts on this page come from the official
+New API docs mirror, docs/official/en/:
+- guide/feature-guide/user/token.md           (key list actions, option table, safety warnings)
+- guide/console/api-token.md                  (API token page overview)
+- support/faq.md                              (quota formula; token quota vs account quota)
+- guide/feature-guide/user/topup.md           (quota definition; online top-up and redemption codes)
+- guide/feature-guide/user/wallet.md          (wallet stats, online top-up, redemption codes, order history,
+                                               billing preference; invitation rewards deliberately omitted)
+- guide/feature-guide/admin/group.md          (groups control channel access and billing ratio; `auto` group)
+- guide/feature-guide/user/dashboard.md       (overview shows balance; dashboard usage analysis)
+- guide/feature-guide/user/personal-setting.md (remaining balance, balance warning threshold notifications)
+- guide/feature-guide/user/log.md             (cost column, display format depends on the instance)
+- guide/feature-guide/user/chat-apps.md       (key must be enabled / have quota / not expired / allowed by limits)
+UI details: official-ui/web/src/features/keys/components/api-keys-mutate-drawer.tsx @ v1.0.0-rc.37
+(auto group order and cross-group retry are only shown when the group is `auto`; expiry quick options).
+-->
+
+在 {{SITE_NAME}} 中，「令牌」就是 API 密钥。每个密钥可以单独设置额度上限、有效期和访问限制；调用产生的消耗从你的账户余额中扣除。
+
+## 管理 API 密钥
+
+点击左侧导航的「API 密钥」（[/keys](/keys)）。列表显示每个密钥的名称、脱敏后的密钥、状态、额度使用情况和分组，并支持：
+
+- **创建**：点击「创建 API 密钥」。
+- **复制**：点击脱敏的密钥，或在行菜单中选择「复制密钥」。完整密钥属于敏感信息，查看时可能需要先通过安全验证。
+- **编辑**：修改除密钥本身以外的全部设置。
+- **启用 / 禁用**：禁用后配置保留，但密钥立即停止接受调用。
+- **删除**：删除后密钥立即失效且无法恢复，支持多选批量删除。
+
+建议按用途分别创建密钥，例如「生产环境」「本地测试」「Claude Code」。这样出了问题可以单独停用，也方便在使用日志里按密钥名称筛选。
+
+## 密钥选项说明
+
+创建或编辑密钥时可以设置以下选项：
+
+| 选项 | 作用 |
+| --- | --- |
+| 名称 | 用来区分用途或环境，例如「生产环境」「测试使用」 |
+| 数量 | 一次创建多个密钥，名称会自动加上随机后缀 |
+| 过期时间 | 到期后拒绝使用；可选永不过期，或用快捷选项设为 1 小时、1 天、1 个月后过期 |
+| 额度 | 这个密钥最多能消耗多少额度 |
+| 无限配额 | 开启后不再限制这个密钥自身的额度 |
+| 模型限制 | 只允许调用选中的模型；留空表示不限制 |
+| IP 白名单 | 每行一个 IP 或 CIDR 网段（如 `203.0.113.0/24`）；留空表示不限制 |
+| 分组 | 指定这个密钥使用哪个渠道分组 |
+| Auto 分组顺序 | 仅当分组为 `auto` 时出现：沿用系统的全局顺序，或为这个密钥单独设置顺序 |
+| 跨分组重试 | 仅当分组为 `auto` 时出现：当前分组的渠道失败后，按顺序尝试下一个分组的渠道 |
+
+关于分组：
+
+- 分组决定密钥能使用哪些渠道，因此会影响可用的模型；不同分组的计费倍率也可能不同。
+- 你能选择的分组由管理员设置。
+- 选择 `auto` 时，系统按优先顺序自动挑选可用的分组，适合希望在分组之间自动切换的场景。
+
+IP 白名单填写的是 {{SITE_NAME}} 看到的来源地址，通常是你所在网络的公网出口 IP，而不是本机的局域网地址。
+
+## 额度是什么
+
+额度是 {{SITE_NAME}} 内部的计费单位。每次调用会按实际使用的 Token 数和模型倍率折算成额度，大致计算方式为：
+
+```text
+额度 = 分组倍率 × 模型倍率 × (输入 Token 数 + 输出 Token 数 × 补全倍率)
+```
+
+- 页面上显示的是额度数值还是对应金额，取决于本站的显示设置。
+- 每次调用实际扣了多少，看「使用日志」中每条记录的费用；按时间、模型、分组汇总的消耗可以在「数据看板」查看。
+- 各模型的具体价格请咨询管理员。
+
+## 账户余额与密钥额度
+
+两者是相互独立的两层限制：
+
+| | 账户余额 | 密钥额度 |
+| --- | --- | --- |
+| 属于 | 你的账号 | 某一个 API 密钥 |
+| 作用 | 调用时实际扣减的额度 | 给这个密钥设定的消耗上限 |
+| 如何增加 | 在「钱包」充值或使用兑换码 | 你自己编辑密钥，调高额度 |
+| 用完之后 | 从钱包扣费的调用都会失败 | 只有这个密钥无法继续调用 |
+
+一次调用要成功，账户余额和该密钥的剩余额度都必须足够（开启「无限配额」的密钥只看账户余额）。所以当账户余额充足却提示额度不足时，先检查这个密钥的剩余额度：可以调高额度，或开启无限配额。
+
+注意：开启无限配额只是取消密钥自身的上限，并不会增加账户余额。
+
+## 充值与余额
+
+点击左侧导航的「钱包」，可以看到当前余额、累计消耗和请求次数。这里的余额是本站内部用于计费的额度，不是现金余额；以额度还是金额显示，由本站的设置决定。
+
+增加余额的方式（页面上只会出现本站已开启的方式）：
+
+- **在线充值**：在充值区域选择预设金额或输入自定义金额，确认系统算出的到账额度与应付金额，选择支付方式后跳转到第三方支付页面完成付款。付款后回到钱包，等待订单状态和余额更新。
+- **兑换码**：在充值区域的「兑换码」输入框填入管理员提供的兑换码，点击「兑换额度」。每个兑换码只能成功使用一次；兑换失败时页面不一定显示具体原因，请核对兑换码是否完整，或向管理员确认它的状态。
+
+注意事项：
+
+- 余额要等支付平台回调确认订单后才会更新，可能不会立刻变化。付款成功但余额迟迟没变时，保留订单号和付款凭证联系管理员，不要重复付款。
+- 充值区域右上角的「订单历史」可以按订单号查询最近 30 天的充值订单。
+- 页面上没有任何可用的充值方式时，请联系管理员。
+- 如果本站提供订阅套餐并且你已购买，可以在钱包页选择计费偏好：「优先订阅」「优先钱包」「仅用订阅」或「仅用钱包」。选择「仅用」类选项时，对应的一方额度不足就会直接失败，不会改用另一方。
+
+其他查看余额的位置：「概览」页汇总了余额、消耗和请求数等指标，「个人资料」页也会显示剩余余额、已用额度和请求次数。
+
+不想等到用完才发现：在「个人资料」的通知设置中填写「配额警告阈值」，余额低于该值时会通过你选择的方式（邮件、Webhook、Bark 或 Gotify）通知你。
+
+## 保护好你的密钥
+
+- API 密钥等同于密码。不要提交到代码仓库，不要放进截图、日志或聊天工具。
+- 给共享环境、CI 或第三方工具使用的密钥，建议同时设置额度上限、过期时间、模型限制，能固定出口 IP 时再加上 IP 白名单。
+- 怀疑泄露时，立即在「API 密钥」页面删除该密钥并重新创建；删除后旧密钥马上失效。

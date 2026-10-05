@@ -16,10 +16,15 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, notFound } from '@tanstack/react-router'
 
+import { isUserUiFeatureEnabled } from '@/config/user-ui-features'
 import { About } from '@/features/about'
 
 export const Route = createFileRoute('/about/')({
+  // [user-ui] 功能开关：关于页禁用时返回 404
+  beforeLoad: () => {
+    if (!isUserUiFeatureEnabled('about')) throw notFound()
+  },
   component: About,
 })

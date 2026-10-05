@@ -48,6 +48,7 @@ import {
 } from '@/components/page-transition'
 import { Button } from '@/components/ui/button'
 import { IconBadge, type IconBadgeTone } from '@/components/ui/icon-badge'
+import { isUserUiFeatureEnabled } from '@/config/user-ui-features'
 import { fetchTokenKey, getApiKeys } from '@/features/keys/api'
 import type { ApiKey } from '@/features/keys/types'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
@@ -504,29 +505,33 @@ export function OverviewDashboard() {
   )
 
   const startSteps = useMemo<StartStep[]>(
-    () => [
-      {
-        title: t('Create API Key'),
-        description: t('Create a key for your app or service'),
-        to: '/keys',
-        icon: KeyRound,
-        completed: Boolean(preferredKey),
-      },
-      {
-        title: t('Add credits'),
-        description: t('Keep enough balance before production traffic'),
-        to: '/wallet',
-        icon: CreditCard,
-        completed: remainQuota > 0 || usedQuota > 0,
-      },
-      {
-        title: t('Send a request'),
-        description: t('Verify routing with Playground or your client'),
-        to: '/playground',
-        icon: TerminalSquare,
-        completed: requestCount > 0,
-      },
-    ],
+    () =>
+      [
+        {
+          title: t('Create API Key'),
+          description: t('Create a key for your app or service'),
+          to: '/keys' as const,
+          icon: KeyRound,
+          completed: Boolean(preferredKey),
+        },
+        {
+          title: t('Add credits'),
+          description: t('Keep enough balance before production traffic'),
+          to: '/wallet' as const,
+          icon: CreditCard,
+          completed: remainQuota > 0 || usedQuota > 0,
+        },
+        {
+          title: t('Send a request'),
+          description: t('Verify routing with Playground or your client'),
+          to: '/playground' as const,
+          icon: TerminalSquare,
+          completed: requestCount > 0,
+        },
+        // [user-ui] 功能开关：钱包禁用时去掉"充值"步骤
+      ].filter(
+        (step) => step.to !== '/wallet' || isUserUiFeatureEnabled('wallet')
+      ),
     [preferredKey, remainQuota, requestCount, t, usedQuota]
   )
 
@@ -556,7 +561,14 @@ export function OverviewDashboard() {
   )
 
   const visibleQuickActions = useMemo(
-    () => quickActions.filter((action) => !action.adminOnly || isAdmin),
+    () =>
+      quickActions
+        .filter((action) => !action.adminOnly || isAdmin)
+        // [user-ui] 功能开关：模型广场禁用时去掉"定价"快捷入口
+        .filter(
+          (action) =>
+            action.to !== '/pricing' || isUserUiFeatureEnabled('pricing')
+        ),
     [isAdmin, quickActions]
   )
 

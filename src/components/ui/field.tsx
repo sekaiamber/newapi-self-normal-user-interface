@@ -151,7 +151,8 @@ function FieldDescription({ className, ...props }: React.ComponentProps<'p'>) {
       className={cn(
         'text-muted-foreground text-left text-sm leading-normal font-normal group-has-data-horizontal/field:text-balance [[data-variant=legend]+&]:-mt-1.5',
         'last:mt-0 nth-last-2:-mt-1',
-        '[&>a:hover]:text-primary [&>a]:underline [&>a]:underline-offset-4',
+        // [user-ui] 链接悬停色改用深金 primary-ink（对比度）
+        '[&>a:hover]:text-primary-ink [&>a]:underline [&>a]:underline-offset-4',
         className
       )}
       {...props}

@@ -22,6 +22,7 @@ import { useTranslation } from 'react-i18next'
 
 import { AnimateInView } from '@/components/animate-in-view'
 import { Button } from '@/components/ui/button'
+import { isUserUiFeatureEnabled } from '@/config/user-ui-features'
 
 interface CTAProps {
   className?: string
@@ -70,13 +71,16 @@ export function CTA(props: CTAProps) {
             {t('Get Started')}
             <ArrowRight className='ml-1 size-3.5 transition-transform duration-200 group-hover:translate-x-0.5' />
           </Button>
-          <Button
-            variant='outline'
-            className='border-border/50 hover:border-border hover:bg-muted/50 rounded-lg'
-            render={<Link to='/pricing' />}
-          >
-            {t('View Pricing')}
-          </Button>
+          {/* [user-ui] 功能开关：模型广场禁用时不显示 */}
+          {isUserUiFeatureEnabled('pricing') && (
+            <Button
+              variant='outline'
+              className='border-border/50 hover:border-border hover:bg-muted/50 rounded-lg'
+              render={<Link to='/pricing' />}
+            >
+              {t('View Pricing')}
+            </Button>
+          )}
         </div>
       </AnimateInView>
     </section>

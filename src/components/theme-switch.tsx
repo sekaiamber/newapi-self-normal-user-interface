@@ -37,7 +37,8 @@ export function ThemeSwitch() {
   /* Update theme-color meta tag
    * when theme is updated */
   useEffect(() => {
-    const themeColor = theme === 'dark' ? '#020817' : '#fff'
+    // [user-ui] 与品牌画布色一致（styles/brand.css 的 --background）
+    const themeColor = theme === 'dark' ? '#131518' : '#f8f7f5'
     const metaThemeColor = document.querySelector("meta[name='theme-color']")
     if (metaThemeColor) metaThemeColor.setAttribute('content', themeColor)
   }, [theme])

@@ -21,8 +21,11 @@ For commercial licensing, please contact support@quantumnous.com
  */
 
 // System Configuration Defaults
-export const DEFAULT_SYSTEM_NAME = 'New API'
-export const DEFAULT_LOGO = '/logo.png'
+// [user-ui] 后端未返回站点名时的默认值
+export const DEFAULT_SYSTEM_NAME = 'SwarmRouter'
+// [user-ui] 后端未配置 Logo 时的默认图标：SwarmRouter 蜂巢图标（随系统明暗切换配色）。
+// 控制台/首页顶栏的品牌位在默认值时改用 public/brand/ 的明暗两版（见 assets/brand-logo.tsx）。
+export const DEFAULT_LOGO = '/favicon.svg'
 
 // LocalStorage Keys
 export const STORAGE_KEYS = {

@@ -29,6 +29,8 @@ For commercial licensing, please contact support@quantumnous.com
 
 @import './theme.css';
 @import './theme-presets.css';
+/* [user-ui] SwarmRouter 品牌 token、字体与硬边风格（覆盖 theme.css 默认值） */
+@import './brand.css';
 
 /* Shiki dual themes: token colors follow dark theme (pre background stays `bg-background` on the block) */
 @layer components {

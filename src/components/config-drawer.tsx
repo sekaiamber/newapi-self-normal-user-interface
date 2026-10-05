@@ -54,6 +54,7 @@ import { useThemeCustomization } from '@/context/theme-customization-provider'
 import { useTheme } from '@/context/theme-provider'
 import {
   type ContentLayout,
+  THEME_CUSTOMIZATION_ENABLED,
   THEME_PRESETS,
   type ThemeFont,
   type ThemePreset,
@@ -99,21 +100,34 @@ export function ConfigDrawer() {
       </SheetTrigger>
       <SheetContent className={sideDrawerContentClassName('sm:max-w-md')}>
         <SheetHeader className={sideDrawerHeaderClassName()}>
-          <SheetTitle>{t('Theme Settings')}</SheetTitle>
+          {/* [user-ui] 抽屉只剩"外观"一项，标题与说明随之改写 */}
+          <SheetTitle>
+            {THEME_CUSTOMIZATION_ENABLED
+              ? t('Theme Settings')
+              : t('design.appearance.title')}
+          </SheetTitle>
           <SheetDescription id='config-drawer-description'>
-            {t('Adjust the appearance and layout to suit your preferences.')}
+            {THEME_CUSTOMIZATION_ENABLED
+              ? t('Adjust the appearance and layout to suit your preferences.')
+              : t('design.appearance.description')}
           </SheetDescription>
         </SheetHeader>
         <div className={sideDrawerFormClassName()}>
           <ThemeConfig />
-          <PresetConfig />
-          <FontConfig />
-          <RadiusConfig />
-          <ScaleConfig />
-          <SidebarConfig />
-          <LayoutConfig />
-          <ContentLayoutConfig />
-          <DirConfig />
+          {/* [user-ui] 用户 UI 只开放明暗切换；配色、字体、圆角、密度、侧栏、布局、宽度、方向
+              统一用品牌默认值（见 lib/theme-customization.ts 的 THEME_CUSTOMIZATION_ENABLED） */}
+          {THEME_CUSTOMIZATION_ENABLED && (
+            <>
+              <PresetConfig />
+              <FontConfig />
+              <RadiusConfig />
+              <ScaleConfig />
+              <SidebarConfig />
+              <LayoutConfig />
+              <ContentLayoutConfig />
+              <DirConfig />
+            </>
+          )}
         </div>
         <SheetFooter className={sideDrawerFooterClassName('grid-cols-1')}>
           <Button
@@ -176,9 +190,10 @@ function RadioGroupItem(props: {
     >
       <div
         className={cn(
-          'ring-border relative rounded-md ring-[1px]',
-          'group-data-checked:ring-primary group-data-checked:shadow-2xl',
-          'group-focus-visible:ring-2'
+          // [user-ui] 品牌硬边风格：2px 边，选中时近黑边 + 硬投影，焦点用 ring 色
+          'ring-border relative rounded-md ring-2',
+          'group-data-checked:ring-edge group-data-checked:shadow-[4px_4px_0_2px_var(--shadow-color)]',
+          'group-focus-visible:ring-ring'
         )}
         role='img'
         aria-hidden='false'
@@ -186,7 +201,8 @@ function RadioGroupItem(props: {
       >
         <CircleCheck
           className={cn(
-            'fill-primary size-6 stroke-white',
+            // [user-ui] 金底上的勾用近黑（白色对比度不足）
+            'fill-primary stroke-primary-foreground size-6',
             'group-data-unchecked:hidden',
             'absolute top-0 right-0 translate-x-1/2 -translate-y-1/2'
           )}

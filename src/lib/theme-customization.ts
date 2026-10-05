@@ -23,20 +23,22 @@ For commercial licensing, please contact support@quantumnous.com
  * provider without breaking React Fast Refresh boundaries.
  */
 
+/**
+ * [user-ui] 用户 UI 不开放配色、字体、圆角、密度、内容宽度的个性化：所有人统一看到
+ * SwarmRouter 品牌外观（`styles/brand.css`）。为 `false` 时 provider 忽略并清除这些轴的
+ * 旧 cookie（否则老用户会卡在旧预设上，审计 6.3 #3），主题抽屉只保留浅色/深色/跟随系统。
+ * 代码保留，改为 `true` 即恢复官方行为。
+ */
+export const THEME_CUSTOMIZATION_ENABLED = false
+
 export const THEME_PRESETS = [
   {
     value: 'default',
     name: 'Default',
     swatches: ['oklch(0.72 0.18 250)', 'oklch(0.7 0.12 280)'],
   },
-  {
-    // Inspired by Anthropic's official brand language: warm cream canvas
-    // (#faf9f5) paired with clay/coral (#d97757) as the single accent.
-    // Swatches preview the canvas → accent gradient that defines the system.
-    value: 'anthropic',
-    name: 'Anthropic',
-    swatches: ['oklch(0.984 0.005 95)', 'oklch(0.685 0.142 38)'],
-  },
+  // [user-ui] 去掉 "Anthropic" 预设：第三方品牌名，会让人误以为站点与其有关（审计 6.1）。
+  //   对应 CSS 仍在 theme-presets.css 中，但已无法选中。
   {
     value: 'simple-large',
     name: 'Simple Large-font',
@@ -177,7 +179,7 @@ export const PRESET_DEFAULT_FONT: Partial<
   Record<ThemePreset, ResolvedThemeFont>
 > = {
   default: 'sans',
-  anthropic: 'serif',
+  // [user-ui] anthropic 预设已移除
 }
 
 /**

@@ -49,6 +49,42 @@
 
 新增：`contracts/billingexpr/frontend_simulation.json`（官方 `pkg/billingexpr/testdata/` 同名文件，后端计费表达式契约）。
 
+## SwarmRouter 定制（2026-10 重绘）
+
+需求、决策与工作包见部署仓库 `docs/notes/ui-redesign-ledger.md`。原则：**禁用不删除**（开关集中在一处）、
+文案通过 i18n 覆盖层改而不改官方词条、官方逻辑层（`features/*/api.ts`、hooks、`lib`、`stores`）只读。
+
+**新增文件（本仓库原创）**
+
+| 文件 | 作用 |
+| --- | --- |
+| `src/config/user-ui-features.ts` | 功能开关：`pricing`、`rankings`、`about`、`referral` 关闭；`wallet` 开启 |
+| `src/config/user-ui-meta.ts` | 源码仓库地址、许可证、上游项目信息（AGPL 声明用） |
+| `src/components/legal/source-notice.tsx` | 源码 / 许可证声明组件（AGPLv3 第 13 条） |
+| `src/lib/api-endpoint.ts` | API 地址：优先后台 `server_address`，否则当前域名；curl 示例生成 |
+| `src/i18n/overrides/*.{zh,en}.json` + `index.ts` | 文案覆盖层，按工作包分文件，覆盖值优先于官方词条 |
+| `src/features/docs/**`、`src/routes/docs/**` | 站内接入文档 `/docs`（替代官方文档外链） |
+| `src/styles/brand.css` | 品牌主题 token（颜色、圆角、边框、按钮投影、字体） |
+| `src/assets/brand.ts`、`brand-logo.tsx` | 品牌 logo 组件（明暗两版） |
+| `public/brand/*`、`public/favicon.svg`、`apple-touch-icon.png` | logo 与图标（`favicon.ico`、`logo.png` 已替换） |
+
+**修改的官方文件（均带 `[user-ui]` 注释）**
+
+| 范围 | 改动 |
+| --- | --- |
+| `src/lib/nav-modules.ts`、`src/hooks/use-sidebar-config.ts`、`use-top-nav-links.ts`、`use-sidebar-data.ts` | 应用功能开关；顶部"文档"固定指向 `/docs`；删除侧边栏"聊天"项 |
+| `src/routes/about/index.tsx`、`src/routes/_authenticated/wallet/index.tsx` | 功能关闭时返回 404 |
+| 首页 hero / cta、概览、钱包页、移动端抽屉 | 按开关隐藏模型广场、钱包入口、推荐计划卡片 |
+| `src/i18n/config.ts`、`languages.ts` | 只加载简体中文与英文，叠加覆盖层；`zh*` 统一映射到简体 |
+| `src/lib/constants.ts`、`index.html` | 默认名称 SwarmRouter、默认 logo、图标标签 |
+| `src/styles/index.css` | 引入 `brand.css` |
+| `src/components/ui/*`（约 30 个）、`components/data-table/core/data-table-view.tsx` | 只改样式变体（小圆角、2px 边、硬投影按钮），组件 API 不变 |
+| 主题设置（`config-drawer`、`theme-switch`、`theme-customization*`） | 只保留浅色 / 深色 / 跟随系统；旧主题 cookie 不再生效；去掉 Anthropic 预设 |
+| `src/lib/colors.ts`、`status-badge.tsx`、`system-brand.tsx`、`header-logo.tsx` | 语义色 token、品牌 logo |
+| 3 个官方测试（`status-query`、`sidebar-config`、`setup-guide`） | mock 功能开关为全开，继续测试官方逻辑 |
+
+**依赖**：新增 `@fontsource-variable/ibm-plex-sans`、`@fontsource-variable/jetbrains-mono`（SIL OFL 1.1）。
+
 ## 已知问题（官方原版即存在）
 
 - 4 个测试在官方 rc.37 原版上即稳定失败：`features/security/__tests__/account-security.test.tsx`（3 个）、`enrollment.test.tsx`（1 个）。

@@ -55,7 +55,8 @@ function TableHeader({ className, ...props }: React.ComponentProps<'thead'>) {
   return (
     <thead
       data-slot='table-header'
-      className={cn('[&_tr]:border-b', className)}
+      // [user-ui] 表头下方 2px 粗线；行分隔仍是 1px，保证密集表格可读
+      className={cn('[&_tr]:border-edge-soft [&_tr]:border-b-2', className)}
       {...props}
     />
   )
@@ -101,8 +102,9 @@ function TableHead({ className, ...props }: React.ComponentProps<'th'>) {
   return (
     <th
       data-slot='table-head'
+      // [user-ui] 表头加粗
       className={cn(
-        'text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0',
+        'text-foreground h-10 px-2 text-left align-middle font-semibold whitespace-nowrap [&:has([role=checkbox])]:pr-0',
         className
       )}
       {...props}

@@ -22,21 +22,13 @@ import { initReactI18next } from 'react-i18next'
 
 import { convertDetectedLanguage } from './languages'
 import en from './locales/en.json'
-import fr from './locales/fr.json'
-import ja from './locales/ja.json'
-import ru from './locales/ru.json'
-import vi from './locales/vi.json'
-import zhTW from './locales/zh-TW.json'
 import zhCN from './locales/zh.json'
+import { overridesEn, overridesZh, withOverrides } from './overrides'
 
+// [user-ui] 只加载简体中文与英文（owner 2026-10-05 决定），并合并 i18n 覆盖层（见 ./overrides/index.ts）
 export const resources = {
-  en,
-  zhCN,
-  fr,
-  ru,
-  ja,
-  vi,
-  zhTW,
+  en: withOverrides(en, overridesEn),
+  zhCN: withOverrides(zhCN, overridesZh),
 } as const
 
 i18n
@@ -45,7 +37,7 @@ i18n
   .init({
     resources,
     fallbackLng: 'en',
-    supportedLngs: ['en', 'zhCN', 'fr', 'ru', 'ja', 'vi', 'zhTW'],
+    supportedLngs: ['en', 'zhCN'],
     load: 'currentOnly',
     nsSeparator: false, // Allow literal colons in keys (e.g., URLs, labels)
     debug: import.meta.env.DEV,

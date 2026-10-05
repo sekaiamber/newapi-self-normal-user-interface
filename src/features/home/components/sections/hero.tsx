@@ -22,7 +22,7 @@ import { ArrowRight, BookOpen } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
-import { useStatus } from '@/hooks/use-status'
+import { isUserUiFeatureEnabled } from '@/config/user-ui-features'
 
 import { HeroTerminalDemo } from '../hero-terminal-demo'
 
@@ -47,9 +47,8 @@ const MoreIcon = () => (
 
 export function Hero(props: HeroProps) {
   const { t } = useTranslation()
-  const { status } = useStatus()
-  const docsUrl =
-    (status?.docs_link as string | undefined) || 'https://docs.newapi.pro'
+  // [user-ui] 文档私有化：始终使用本站 /docs
+  const docsUrl = '/docs'
 
   const renderDocsButton = () => {
     const isExternal = docsUrl.startsWith('http')
@@ -157,13 +156,16 @@ export function Hero(props: HeroProps) {
                   {t('Get Started')}
                   <ArrowRight className='ml-1.5 size-4 transition-transform duration-200 group-hover:translate-x-0.5' />
                 </Button>
-                <Button
-                  variant='outline'
-                  className='border-border/50 hover:border-border hover:bg-muted/50 h-11 rounded-lg px-5 text-sm font-medium'
-                  render={<Link to='/pricing' />}
-                >
-                  {t('View Pricing')}
-                </Button>
+                {/* [user-ui] 功能开关：模型广场禁用时不显示 */}
+                {isUserUiFeatureEnabled('pricing') && (
+                  <Button
+                    variant='outline'
+                    className='border-border/50 hover:border-border hover:bg-muted/50 h-11 rounded-lg px-5 text-sm font-medium'
+                    render={<Link to='/pricing' />}
+                  >
+                    {t('View Pricing')}
+                  </Button>
+                )}
                 {renderDocsButton()}
               </>
             )}

@@ -42,6 +42,8 @@ import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import { stringToColor } from '@/lib/colors'
 import { cn } from '@/lib/utils'
 
+// [user-ui] 全部走主题语义 token（去掉写死的 emerald 调色板类）；chart-1 现为品牌金，
+// 不再代表"蓝"。
 export const dotColorMap = {
   success: 'bg-success',
   warning: 'bg-warning',
@@ -49,14 +51,14 @@ export const dotColorMap = {
   info: 'bg-info',
   neutral: 'bg-neutral',
   purple: 'bg-chart-4',
-  amber: 'bg-warning',
-  blue: 'bg-chart-1',
+  amber: 'bg-primary',
+  blue: 'bg-info',
   cyan: 'bg-chart-2',
   green: 'bg-success',
   grey: 'bg-neutral',
-  indigo: 'bg-chart-1',
+  indigo: 'bg-chart-2',
   'light-blue': 'bg-info',
-  'light-green': 'bg-emerald-400',
+  'light-green': 'bg-success',
   lime: 'bg-chart-3',
   orange: 'bg-warning',
   pink: 'bg-chart-5',
@@ -66,6 +68,7 @@ export const dotColorMap = {
   yellow: 'bg-warning',
 } as const
 
+// [user-ui] 文字色只用浅色模式下对比度 ≥ 4.5:1 的 token（品牌金文字用 primary-ink）。
 export const textColorMap = {
   success: 'text-success',
   warning: 'text-warning',
@@ -73,14 +76,14 @@ export const textColorMap = {
   info: 'text-info',
   neutral: 'text-muted-foreground',
   purple: 'text-chart-4',
-  amber: 'text-warning',
-  blue: 'text-chart-1',
+  amber: 'text-primary-ink',
+  blue: 'text-info',
   cyan: 'text-chart-2',
   green: 'text-success',
   grey: 'text-muted-foreground',
-  indigo: 'text-chart-1',
+  indigo: 'text-chart-2',
   'light-blue': 'text-info',
-  'light-green': 'text-emerald-500 dark:text-emerald-300',
+  'light-green': 'text-success',
   lime: 'text-chart-3',
   orange: 'text-warning',
   pink: 'text-chart-5',
@@ -184,7 +187,8 @@ export function StatusBadge({
       className={cn(
         'inline-flex w-fit max-w-full min-w-0 shrink items-center font-medium tracking-normal whitespace-nowrap transition-colors',
         isBadge
-          ? cn('rounded-4xl', sizeMap[size ?? 'sm'])
+          ? // [user-ui] 品牌硬边风格：方角
+            cn('rounded-sm', sizeMap[size ?? 'sm'])
           : cn(
               textSizeMap[size ?? 'sm'],
               type === 'underline' && 'border-b border-current pb-px'

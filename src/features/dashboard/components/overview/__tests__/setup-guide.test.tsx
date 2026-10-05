@@ -33,6 +33,19 @@ import { useSystemConfigStore } from '@/stores/system-config-store'
 
 import { OverviewDashboard } from '../overview-dashboard'
 
+// [user-ui] 本文件验证官方逻辑，因此打开全部本地功能开关；
+// 开关本身的行为见 src/config/__tests__/user-ui-features.test.ts
+vi.mock('@/config/user-ui-features', () => ({
+  USER_UI_FEATURES: {
+    pricing: true,
+    rankings: true,
+    about: true,
+    wallet: true,
+    referral: true,
+  },
+  isUserUiFeatureEnabled: () => true,
+}))
+
 const storageKey = 'dashboard_overview_setup_guide_expanded'
 let client: QueryClient
 let keyLookupError: Error | null

@@ -60,9 +60,10 @@ export function DataTableView<TData>(props: DataTableViewProps<TData>) {
   )
 
   return (
+    // [user-ui] 表格外框与卡片一致用 2px 边（品牌设计），行分隔线仍为 1px
     <div
       className={cn(
-        'overflow-hidden rounded-lg border',
+        'border-edge-soft overflow-hidden rounded-lg border-2',
         props.containerClassName
       )}
       {...props.containerProps}

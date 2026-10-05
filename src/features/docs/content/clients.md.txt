@@ -1,0 +1,193 @@
+<!--
+Maintainer note (not rendered). Facts on this page come from the official
+New API docs mirror, docs/official/en/:
+- apps/cc-switch.md               (install commands, ccswitch:// import from the API key row menu, dialog fields)
+- apps/claude-code.md             (install commands, /model, "all models go through the custom endpoint" note)
+- apps/codex-cli.md               (Node.js / WSL2, npm install, /model, permissions)
+- apps/cherry-studio.md           (provider type / API key / site address, setup steps, chat preset import)
+- guide/feature-guide/user/chat-apps.md (preparation checklist, row menu "Chat" import, manual setup, FAQ)
+- guide/feature-guide/user/api.md (OpenAI Python SDK example)
+- support/faq.md                  (HTTPS pages block HTTP API addresses)
+Addresses per client: official-ui/web/src/features/keys/components/dialogs/cc-switch-dialog.tsx
+@ v1.0.0-rc.37 (Claude/Gemini: origin, Codex: origin + /v1) and
+official-ui/web/src/features/chat/lib/chat-links.ts @ v1.0.0-rc.37 (Cherry Studio import uses the origin).
+Upstream one-click setup scripts (QuantumNous/new-api-docs) removed on 2026-10-05 per owner; our own scripts will replace them.
+-->
+
+## 开始之前
+
+1. 在「API 密钥」页面（[/keys](/keys)）创建一个密钥，建议每个客户端单独使用一个，方便统计和停用。
+2. 确认密钥已启用、未过期、额度充足，并且分组、模型限制和 IP 白名单允许这次调用。
+3. 对照下表找到客户端需要的地址：
+
+| 客户端 | 接口地址 | 使用的格式 |
+| --- | --- | --- |
+| Claude Code | `{{BASE_URL}}` | Claude 原生 |
+| Codex CLI | `{{BASE_URL}}/v1` | OpenAI 兼容 |
+| Cherry Studio | `{{BASE_URL}}` | 填站点地址即可 |
+| 其他 OpenAI 兼容应用或 SDK | `{{BASE_URL}}/v1` | OpenAI 兼容 |
+
+> 只把密钥填进你信任的应用。修改客户端的接口地址后，该客户端的所有请求都会经过 {{SITE_NAME}}，消耗你在本站的额度。
+
+## CC Switch
+
+CC Switch 是开源、跨平台的 AI 命令行工具管理器，可以一键切换 Claude Code、Codex、Gemini CLI 的接口配置，不用手动改环境变量和配置文件。配置 Claude Code 和 Codex CLI 时推荐先装它。
+
+### 安装
+
+macOS 推荐用 Homebrew：
+
+```bash
+brew tap farion1231/ccswitch
+brew install --cask cc-switch
+```
+
+- Windows：从 [GitHub Releases](https://github.com/farion1231/cc-switch/releases) 下载 `.msi` 安装包或便携版 `.zip`。
+- Linux：从同一页面下载 `.deb` 或 `.AppImage`。Arch Linux 也可以用 AUR：
+
+```bash
+paru -S cc-switch-bin
+```
+
+没有图形界面的服务器可以使用 Web 版，启动后在浏览器访问 `http://localhost:17666`：
+
+```bash
+wget https://github.com/farion1231/cc-switch/releases/latest/download/cc-switch-web-linux-x64.tar.gz
+tar -xzf cc-switch-web-linux-x64.tar.gz
+cd cc-switch-web/
+./cc-switch-web
+```
+
+### 从 {{SITE_NAME}} 一键导入
+
+1. 打开「API 密钥」页面，点击目标密钥右侧的菜单按钮，选择「CC Switch」。
+2. 在「填入 CC Switch」对话框中选择应用：**Claude**、**Codex** 或 **Gemini**。
+3. 填写配置名称（例如 `My Claude`），选择「主模型」（必填）。选 Claude 时还可以分别指定 Haiku、Sonnet、Opus 模型。
+4. 点击「打开 CC Switch」，浏览器会唤起 CC Switch 并带入地址、密钥和模型，在 CC Switch 中确认即可。
+
+导入时地址会自动填好：Claude 和 Gemini 使用 `{{BASE_URL}}`，Codex 使用 `{{BASE_URL}}/v1`。浏览器可能会先询问是否允许打开外部应用。
+
+## Claude Code
+
+### 安装
+
+macOS / Linux：
+
+```bash
+curl -fsSL https://claude.ai/install.sh | bash
+```
+
+Windows：先安装 [Node.js](https://nodejs.org/) LTS 版本和 [Git for Windows](https://git-scm.com/downloads/win)，然后在 PowerShell 中执行：
+
+```powershell
+npm install -g @anthropic-ai/claude-code
+```
+
+安装完成后检查版本：
+
+```bash
+claude --version
+```
+
+### 连接到 {{SITE_NAME}}
+
+按上文 [CC Switch](#cc-switch) 的步骤导入，应用选择 Claude。
+
+{{SITE_NAME}} 自己的一键配置脚本正在准备中，上线后会补充在这里。
+
+### 开始使用
+
+```bash
+cd /path/to/your/project
+claude
+```
+
+进入 Claude Code 后输入 `/model` 可以切换模型。接入 {{SITE_NAME}} 之后，包括内置预设在内的所有模型都会通过 {{SITE_NAME}} 调用，不再使用官方账号的额度。
+
+## Codex CLI
+
+### 安装
+
+Codex CLI 需要 Node.js 环境。Windows 用户建议在 WSL2 中安装和使用（PowerShell 中执行 `wsl --install`，重启后进入 WSL 再安装 Node.js）。
+
+```bash
+npm install -g @openai/codex
+codex --version
+```
+
+遇到权限错误时，可以在命令前加 `sudo`，或者让 npm 使用用户目录：
+
+```bash
+npm config set prefix ~/.npm-global
+export PATH=~/.npm-global/bin:$PATH
+```
+
+### 连接到 {{SITE_NAME}}
+
+按上文 [CC Switch](#cc-switch) 的步骤导入，应用选择 Codex，地址会自动设为 `{{BASE_URL}}/v1`。
+
+{{SITE_NAME}} 自己的一键配置脚本正在准备中，上线后会补充在这里。
+
+### 开始使用
+
+```bash
+cd /path/to/your/project
+codex
+```
+
+可以为 Codex 设置权限：允许它直接修改文件，或者每次修改文件前都需要你手动确认。输入 `/model` 可以切换模型。
+
+## Cherry Studio
+
+Cherry Studio 是桌面 AI 客户端，可从 [cherry-ai.com/download](https://cherry-ai.com/download) 下载。
+
+### 一键导入
+
+如果管理员配置了 Cherry Studio 的聊天预设：在「API 密钥」页面打开目标密钥的行菜单，选择「聊天」→「Cherry Studio」，浏览器会唤起 Cherry Studio 并自动填入地址和密钥。
+
+### 手动配置
+
+1. 在 {{SITE_NAME}} 的「API 密钥」页面复制密钥。
+2. 在 Cherry Studio 中添加提供商，按下表填写：
+
+| 字段 | 填写内容 |
+| --- | --- |
+| 提供商类型 | 选择本站支持的接口类型，例如 OpenAI |
+| API 密钥 | 刚才复制的 `sk-...` |
+| API 地址 | `{{BASE_URL}}` |
+
+3. 为该提供商添加模型，模型名使用 [模型列表](/docs/api-basics#列出可用模型) 中返回的 `id`。
+4. 回到聊天页面，切换到刚添加的模型即可开始对话。
+
+## 其他应用与 SDK
+
+大多数支持「OpenAI 兼容接口」或「自定义 API」的应用都可以接入：
+
+1. 在应用的设置中找到自定义 API 或 OpenAI 兼容接口的配置项；
+2. API 地址（Base URL）填 `{{BASE_URL}}/v1`，API Key 填你的密钥；
+3. 如果应用要求填写完整接口地址，填 `{{BASE_URL}}/v1/chat/completions`；
+4. 保存后即可使用。
+
+使用 OpenAI 官方 Python SDK 时，只需修改 `base_url` 和 `api_key`：
+
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    api_key="sk-替换为你的密钥",
+    base_url="{{BASE_URL}}/v1",
+)
+
+response = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[{"role": "user", "content": "你好"}],
+)
+print(response.choices[0].message.content)
+```
+
+## 接入问题排查
+
+- **点击一键导入没有反应**：先安装目标应用，并确认系统已经为它注册了对应的链接协议；浏览器弹出「是否打开外部应用」时选择允许。
+- **网页版应用提示 Failed to fetch**：确认接口地址和密钥填写正确；如果应用页面是 HTTPS，接口地址也必须是 HTTPS，浏览器会拦截 HTTPS 页面发往 HTTP 地址的请求。
+- **返回未授权或禁止访问**：检查认证头格式、模型名、密钥状态、分组权限和 IP 白名单；Claude 和 Gemini 客户端还要确认使用了正确的路径和请求头。
+- 更多错误见 [常见问题](/docs/faq)。

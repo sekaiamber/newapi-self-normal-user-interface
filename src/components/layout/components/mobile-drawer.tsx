@@ -25,6 +25,7 @@ import { SignOutDialog } from '@/components/sign-out-dialog'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { isUserUiFeatureEnabled } from '@/config/user-ui-features'
 import useDialogState from '@/hooks/use-dialog'
 import { useIsSidebarModuleVisible } from '@/hooks/use-sidebar-config'
 import { useUserDisplay } from '@/hooks/use-user-display'
@@ -135,14 +136,17 @@ function MobileUserProfile({ user, onNavigate }: MobileUserProfileProps) {
           </Link>
         )}
 
-        <Link
-          to='/wallet'
-          onClick={onNavigate}
-          className='text-primary/60 hover:text-primary/80 border-border flex items-center gap-2.5 border-b p-2.5 transition-colors'
-        >
-          <Wallet className='size-4' />
-          {t('Wallet')}
-        </Link>
+        {/* [user-ui] 功能开关：钱包禁用时不显示 */}
+        {isUserUiFeatureEnabled('wallet') && (
+          <Link
+            to='/wallet'
+            onClick={onNavigate}
+            className='text-primary/60 hover:text-primary/80 border-border flex items-center gap-2.5 border-b p-2.5 transition-colors'
+          >
+            <Wallet className='size-4' />
+            {t('Wallet')}
+          </Link>
+        )}
 
         {/* Sign out - consistent style */}
         <Button

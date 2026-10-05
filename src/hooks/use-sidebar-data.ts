@@ -24,7 +24,6 @@ import {
   Key,
   LayoutDashboard,
   ListTodo,
-  MessageSquare,
   ShieldCheck,
   User,
   Wallet,
@@ -53,11 +52,7 @@ export function useSidebarData(): SidebarData {
             url: '/playground',
             icon: FlaskConical,
           },
-          {
-            title: t('Chat'),
-            icon: MessageSquare,
-            type: 'chat-presets',
-          },
+          // [user-ui] "聊天"（chat-presets）菜单项已删除；令牌页的一键接入仍使用 chat 代码
         ],
       },
       {

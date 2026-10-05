@@ -19,6 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { useMemo } from 'react'
 
 import type { NavGroup, NavItem } from '@/components/layout/types'
+import { isUserUiFeatureEnabled } from '@/config/user-ui-features'
 import { useStatus } from '@/hooks/use-status'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -174,6 +175,9 @@ function isModuleEnabled(
   adminConfig: SidebarModulesAdminConfig,
   userConfig: SidebarModulesUserConfig
 ): boolean {
+  // [user-ui] 本地功能开关：钱包禁用时侧边栏、头像菜单等入口一律隐藏
+  if (url === '/wallet' && !isUserUiFeatureEnabled('wallet')) return false
+
   const mapping = URL_TO_CONFIG_MAP[url]
   if (!mapping) {
     // No mapping config, default to visible (e.g. system settings and new features)

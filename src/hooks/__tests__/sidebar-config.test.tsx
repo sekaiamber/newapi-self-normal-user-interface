@@ -27,6 +27,19 @@ import { useAuthStore } from '@/stores/auth-store'
 import { useSidebarConfig } from '../use-sidebar-config'
 import { useSidebarData } from '../use-sidebar-data'
 
+// [user-ui] 本文件验证官方逻辑，因此打开全部本地功能开关；
+// 开关本身的行为见 src/config/__tests__/user-ui-features.test.ts
+vi.mock('@/config/user-ui-features', () => ({
+  USER_UI_FEATURES: {
+    pricing: true,
+    rankings: true,
+    about: true,
+    wallet: true,
+    referral: true,
+  },
+  isUserUiFeatureEnabled: () => true,
+}))
+
 beforeEach(() => {
   vi.stubGlobal('localStorage', {
     getItem: () => null,

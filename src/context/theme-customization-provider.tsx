@@ -36,6 +36,7 @@ import {
   THEME_PRESET_VALUES,
   THEME_RADIUS_VALUES,
   THEME_SCALE_VALUES,
+  THEME_CUSTOMIZATION_ENABLED,
   type ThemeCustomization,
   type ThemeFont,
   type ThemePreset,
@@ -50,6 +51,8 @@ function readCookie<T extends string>(
   allowed: ReadonlySet<T>,
   fallback: T
 ): T {
+  // [user-ui] 个性化关闭时一律用默认值（品牌外观），不读旧 cookie
+  if (!THEME_CUSTOMIZATION_ENABLED) return fallback
   const value = getCookie(name)
   return value && allowed.has(value as T) ? (value as T) : fallback
 }
@@ -132,6 +135,15 @@ export function ThemeCustomizationProvider(props: {
       DEFAULT_THEME_CUSTOMIZATION.contentLayout
     )
   )
+
+  // [user-ui] 个性化关闭时清掉之前留下的预设/字体/圆角/密度/宽度 cookie，
+  // 避免日后重新开启时老用户突然回到旧外观。
+  useEffect(() => {
+    if (THEME_CUSTOMIZATION_ENABLED) return
+    for (const name of Object.values(THEME_COOKIE_KEYS)) {
+      if (getCookie(name) !== undefined) removeCookie(name)
+    }
+  }, [])
 
   // Mirror state to the <body> via data-* attributes so theme-presets.css can
   // override CSS variables at the right cascade layer.

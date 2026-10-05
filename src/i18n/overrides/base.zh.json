@@ -1,0 +1,4 @@
+{
+  "legal.sourceCode": "源代码",
+  "legal.notice": "{{siteName}} 的用户界面基于 {{upstream}}（© {{holder}}）修改，以 GNU AGPLv3 发布，不提供任何担保。"
+}

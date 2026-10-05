@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import type { QueryClient } from '@tanstack/react-query'
 
+import { isUserUiFeatureEnabled } from '@/config/user-ui-features'
 import { readCachedStatus, statusQueryOptions } from '@/lib/status-query'
 
 export type ModuleAccess = { enabled: boolean; requireAuth: boolean }
@@ -141,7 +142,25 @@ export function parseHeaderNavModules(raw: unknown): HeaderNavModules {
 export function parseHeaderNavModulesFromStatus(
   status: Record<string, unknown> | null
 ): HeaderNavModules {
-  return parseHeaderNavModules(status?.HeaderNavModules)
+  return applyUserUiFeatureOverrides(
+    parseHeaderNavModules(status?.HeaderNavModules)
+  )
+}
+
+// [user-ui] 本地功能开关覆盖后端 HeaderNavModules：禁用的模块在导航和路由守卫中都视为关闭。
+function applyUserUiFeatureOverrides(
+  modules: HeaderNavModules
+): HeaderNavModules {
+  return {
+    ...modules,
+    pricing: isUserUiFeatureEnabled('pricing')
+      ? modules.pricing
+      : { ...modules.pricing, enabled: false },
+    rankings: isUserUiFeatureEnabled('rankings')
+      ? modules.rankings
+      : { ...modules.rankings, enabled: false },
+    about: isUserUiFeatureEnabled('about') ? modules.about : false,
+  }
 }
 
 /**
