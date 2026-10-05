@@ -27,6 +27,8 @@ import type {
 import { getCurrencyDisplay } from '@/lib/currency'
 import { formatChartTime, type TimeGranularity } from '@/lib/time'
 
+import { readChartPalette } from './chart-palette'
+
 type TFunction = (key: string) => string
 type TooltipLineItem = {
   key: string
@@ -40,6 +42,11 @@ type TooltipLineItem = {
 }
 
 export function getDashboardChartColors(domainLength: number): string[] {
+  // [user-ui] 优先使用主题 token --chart-1..5（品牌色，随明暗切换），见 ./chart-palette.ts；
+  // 读不到时（测试环境等）回退到官方的 VChart 内置色板。
+  const themePalette = readChartPalette()
+  if (themePalette) return themePalette
+
   const scheme =
     vchartDefaultDataScheme.find(
       (item) => !item.maxDomainLength || domainLength <= item.maxDomainLength
@@ -71,7 +78,9 @@ export function processChartData(
   data: QuotaDataItem[],
   timeGranularity: TimeGranularity = 'day',
   t?: TFunction,
-  chartCornerRadius?: number
+  chartCornerRadius?: number,
+  // [user-ui] 调用方传入当前主题的色板（见 ./chart-palette.ts）；不传时按官方方式取色
+  palette?: readonly string[]
 ): ProcessedChartData {
   const tt: TFunction = t ?? ((x) => x)
   const otherLabel = tt('Other')
@@ -262,7 +271,9 @@ export function processChartData(
   const sortedTimes = Array.from(timeModelMap.keys()).sort()
   const sortedModels = [...allModels].sort()
   const modelColorDomain = Array.from(new Set([...sortedModels, otherLabel]))
-  const modelColorRange = getDashboardChartColors(modelColorDomain.length)
+  const modelColorRange = palette?.length
+    ? [...palette]
+    : getDashboardChartColors(modelColorDomain.length)
   const otherColor = modelColorRange[modelColorDomain.indexOf(otherLabel)]
   const otherTooltipColor =
     typeof otherColor === 'string' ? otherColor : '#FF8A00'
