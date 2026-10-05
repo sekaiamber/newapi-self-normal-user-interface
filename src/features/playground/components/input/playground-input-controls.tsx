@@ -20,8 +20,8 @@ import { SendIcon, SquareIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { PromptInputButton } from '@/components/ai-elements/prompt-input'
 import { ModelGroupSelector } from '@/components/model-group-selector'
+import { Button } from '@/components/ui/button'
 
 import { getInputControlState } from '../../lib'
 import type { GroupOption, ModelOption } from '../../types'
@@ -79,28 +79,21 @@ export function PlaygroundInputControls({
     />
   )
 
+  // [user-ui] 品牌按钮：发送用默认（金色）主按钮、停止用描边按钮，不再手写颜色与阴影；
+  // 直接用 Button（PromptInputButton 会加 shadow-none，去掉主按钮的硬投影）。
   const renderSubmitButton = () =>
     shouldShowStop ? (
-      <PromptInputButton
-        className='border-destructive/25 bg-destructive/10 text-destructive hover:bg-destructive/15 font-medium'
-        onClick={onStop}
-        variant='secondary'
-      >
+      <Button onClick={onStop} size='sm' type='button' variant='outline'>
         <SquareIcon className='fill-current' size={16} />
         <span className='hidden sm:inline'>{t('Stop')}</span>
         <span className='sr-only sm:hidden'>{t('Stop')}</span>
-      </PromptInputButton>
+      </Button>
     ) : (
-      <PromptInputButton
-        className='bg-primary text-primary-foreground hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground h-8 px-3 font-medium shadow-sm'
-        disabled={!canSubmit}
-        type='submit'
-        variant='default'
-      >
+      <Button disabled={!canSubmit} size='sm' type='submit'>
         <SendIcon size={16} />
         <span className='hidden sm:inline'>{t('Send')}</span>
         <span className='sr-only sm:hidden'>{t('Send')}</span>
-      </PromptInputButton>
+      </Button>
     )
 
   return (

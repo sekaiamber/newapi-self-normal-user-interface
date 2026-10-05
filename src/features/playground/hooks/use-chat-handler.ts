@@ -30,6 +30,7 @@ import {
   updateLastAssistantMessage,
   parseRequestErrorDetails,
   applyChatCompletionResponse,
+  getPlaygroundErrorInfo,
   completeAssistantMessage,
   hasChatCompletionChoice,
   isAssistantMessageFinal,
@@ -226,7 +227,11 @@ export function useChatHandler({
       flushStreamUpdates(generation)
       setIsRequesting(false)
       const displayError = getDisplayError(error)
-      handleServerError(new Error(displayError))
+      // [user-ui] toast 只显示人话标题（原为后端原文，与对话里的错误卡片重复）；
+      // 下一步提示和原始错误信息在错误卡片中（components/message/message-error.tsx）
+      handleServerError(new Error(displayError), undefined, {
+        title: t(getPlaygroundErrorInfo(displayError, errorCode).titleKey),
+      })
       const errorTitle = t(ERROR_MESSAGES.API_REQUEST_ERROR)
       onMessageUpdate((prev) => {
         if (generation !== requestGenerationRef.current) return prev

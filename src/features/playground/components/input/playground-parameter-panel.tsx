@@ -108,8 +108,9 @@ function PlaygroundParameterContent({
 
         return (
           <div
+            // [user-ui] 品牌硬边：参数卡片用 2px 卡片边（原 1px 半透明边）
             className={cn(
-              'border-border/70 bg-background/60 grid gap-2 rounded-lg border p-3 transition-opacity',
+              'border-edge-soft bg-card grid gap-2 rounded-lg border-2 p-3 transition-opacity motion-reduce:transition-none',
               (!enabled || disabled) && 'opacity-55'
             )}
             key={control.key}
@@ -210,7 +211,8 @@ export function PlaygroundParameterPanel(props: PlaygroundParameterPanelProps) {
       variant='ghost'
     >
       <SlidersHorizontalIcon size={16} />
-      <span className='bg-primary text-primary-foreground absolute -top-1 -right-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full px-1 text-[9px] leading-none font-semibold'>
+      {/* [user-ui] 已开启参数数：方角小标（品牌规范不用圆形徽标），数字用等宽字体 */}
+      <span className='bg-primary text-primary-foreground absolute -top-1 -right-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-sm px-1 font-mono text-[9px] leading-none font-semibold tabular-nums'>
         {activeCount}
       </span>
     </PromptInputButton>
@@ -226,7 +228,8 @@ export function PlaygroundParameterPanel(props: PlaygroundParameterPanelProps) {
           </TooltipContent>
         </Tooltip>
         <SheetContent
-          className='max-h-[85vh] overflow-hidden rounded-t-xl'
+          // [user-ui] 品牌小圆角（原 rounded-t-xl）
+          className='max-h-[85vh] overflow-hidden rounded-t-lg'
           side='bottom'
         >
           <SheetHeader>

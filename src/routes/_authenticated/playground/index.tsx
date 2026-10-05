@@ -18,7 +18,6 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { createFileRoute, redirect } from '@tanstack/react-router'
 
-import { Main } from '@/components/layout'
 import { Playground } from '@/features/playground'
 import { isSidebarModuleEnabled } from '@/lib/nav-modules'
 
@@ -28,13 +27,6 @@ export const Route = createFileRoute('/_authenticated/playground/')({
       throw redirect({ to: '/dashboard' })
     }
   },
-  component: PlaygroundPage,
+  // [user-ui] 页面外壳（含 <main> 与标题栏）改由 Playground 内的 SectionPageLayout 提供，避免嵌套两个 <main>
+  component: Playground,
 })
-
-function PlaygroundPage() {
-  return (
-    <Main className='p-0'>
-      <Playground />
-    </Main>
-  )
-}

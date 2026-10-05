@@ -29,35 +29,33 @@ import type {
   BlockRendererOptions,
 } from './response-types'
 
+// [user-ui] 品牌语义色：原为 blue/emerald/violet/amber/red 调色板写死的颜色，改用主题 token
+// （info/success/primary/warning/destructive），明暗两种模式都由 brand.css 保证对比度；正文统一用前景色。
 const alertConfig = {
   note: {
     label: 'Note',
-    className:
-      'border-blue-500/40 bg-blue-500/8 text-blue-950 dark:text-blue-100',
-    markerClassName: 'text-blue-600 dark:text-blue-300',
+    className: 'border-info/50 bg-info/10 text-foreground',
+    markerClassName: 'text-info',
   },
   tip: {
     label: 'Tip',
-    className:
-      'border-emerald-500/40 bg-emerald-500/8 text-emerald-950 dark:text-emerald-100',
-    markerClassName: 'text-emerald-600 dark:text-emerald-300',
+    className: 'border-success/50 bg-success/10 text-foreground',
+    markerClassName: 'text-success',
   },
   important: {
     label: 'Important',
-    className:
-      'border-violet-500/40 bg-violet-500/8 text-violet-950 dark:text-violet-100',
-    markerClassName: 'text-violet-600 dark:text-violet-300',
+    className: 'border-primary bg-accent text-foreground',
+    markerClassName: 'text-primary-ink',
   },
   warning: {
     label: 'Warning',
-    className:
-      'border-amber-500/40 bg-amber-500/8 text-amber-950 dark:text-amber-100',
-    markerClassName: 'text-amber-600 dark:text-amber-300',
+    className: 'border-warning/50 bg-warning/10 text-foreground',
+    markerClassName: 'text-warning',
   },
   caution: {
     label: 'Caution',
-    className: 'border-red-500/40 bg-red-500/8 text-red-950 dark:text-red-100',
-    markerClassName: 'text-red-600 dark:text-red-300',
+    className: 'border-destructive/50 bg-destructive/10 text-foreground',
+    markerClassName: 'text-destructive',
   },
 } satisfies Record<AlertKind, AlertConfig>
 
@@ -138,7 +136,8 @@ export function renderBlockquote(
     return (
       <aside
         className={cn(
-          'my-4 rounded-lg border px-4 py-3 text-sm',
+          // [user-ui] 品牌硬边：2px 边（原 1px）
+          'my-4 rounded-lg border-2 px-4 py-3 text-sm',
           '[&>*:first-child]:mt-0 [&>*:last-child]:mb-0',
           config.className
         )}

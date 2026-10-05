@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useState } from 'react'
+import type { Ref } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import {
@@ -38,6 +38,10 @@ import { PlaygroundInputTools } from './playground-input-tools'
 
 interface PlaygroundInputProps {
   config: PlaygroundConfig
+  // [user-ui] 输入框内容由页面持有：起始示例点击后只填入输入框，"查看代码"也要读取未发送的草稿
+  text: string
+  onTextChange: (text: string) => void
+  textareaRef?: Ref<HTMLTextAreaElement>
   onSubmit: (text: string) => void
   onStop?: () => void
   disabled?: boolean
@@ -64,6 +68,9 @@ interface PlaygroundInputProps {
 
 export function PlaygroundInput({
   config,
+  text,
+  onTextChange,
+  textareaRef,
   onSubmit,
   onStop,
   disabled,
@@ -82,21 +89,22 @@ export function PlaygroundInput({
   parameterEnabled,
 }: PlaygroundInputProps) {
   const { t } = useTranslation()
-  const [text, setText] = useState('')
 
   const handleSubmit = (message: PromptInputMessage) => {
     const submittableText = getSubmittableInputText(message, disabled)
 
     if (!submittableText) return
     onSubmit(submittableText)
-    setText('')
+    onTextChange('')
   }
 
   return (
-    <div className='grid shrink-0 gap-4 px-1 md:pb-4'>
+    <div className='grid shrink-0 gap-1.5 px-1 pb-2 md:pb-3'>
+      {/* [user-ui] 品牌硬边输入框：去掉柔和大阴影和圆角，聚焦时近黑边；
+          InputGroup 的 has-disabled 样式会因为里面任何一个禁用按钮（如空输入时的发送）把整个框变灰，这里还原 */}
       <PromptInput
         className='relative'
-        groupClassName='bg-background/95 dark:bg-background/80 border-border/70 shadow-[0_18px_60px_-32px_rgba(0,0,0,0.65)] ring-1 ring-foreground/5 rounded-xl overflow-hidden transition-all duration-200 focus-within:border-primary/45 focus-within:ring-primary/15 focus-within:shadow-[0_22px_70px_-34px_rgba(0,0,0,0.75)]'
+        groupClassName='bg-card has-disabled:bg-card has-disabled:opacity-100 dark:has-disabled:bg-background focus-within:border-edge overflow-hidden'
         onSubmit={handleSubmit}
       >
         <PromptInputTextarea
@@ -106,12 +114,13 @@ export function PlaygroundInput({
           spellCheck={false}
           className='min-h-20 px-5 pt-4 pb-3 leading-7 md:min-h-24 md:text-base'
           disabled={disabled}
-          onChange={(event) => setText(event.target.value)}
-          placeholder={t('Ask anything')}
+          onChange={(event) => onTextChange(event.target.value)}
+          placeholder={t('playground.input.placeholder')}
+          ref={textareaRef}
           value={text}
         />
 
-        <PromptInputFooter className='border-border/60 bg-muted/20 dark:bg-muted/10 border-t px-3 py-2.5 backdrop-blur'>
+        <PromptInputFooter className='border-border bg-muted/40 border-t px-3 py-2.5'>
           <PlaygroundInputControls
             disabled={disabled}
             groups={groups}
@@ -138,6 +147,10 @@ export function PlaygroundInput({
           />
         </PromptInputFooter>
       </PromptInput>
+      {/* [user-ui] 计费与保存位置说明（审计 2.10 #8；/pg 接口复用统一计费，见官方文档 guide/feature-guide/user/api.md） */}
+      <p className='text-muted-foreground px-1 text-center text-xs'>
+        {t('playground.input.footnote')}
+      </p>
     </div>
   )
 }

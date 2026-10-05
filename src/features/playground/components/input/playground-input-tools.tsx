@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { GlobeIcon, PaperclipIcon, Trash2Icon } from 'lucide-react'
+import { Trash2Icon } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -27,22 +27,11 @@ import {
 } from '@/components/ai-elements/prompt-input'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 
-import {
-  ATTACHMENT_ACTIONS,
-  getAttachmentActionNotice,
-  getSearchActionNotice,
-} from '../../lib'
 import type { ParameterEnabled, PlaygroundConfig } from '../../types'
 import { PlaygroundParameterPanel } from './playground-parameter-panel'
 
@@ -74,18 +63,6 @@ export function PlaygroundInputTools({
   const { t } = useTranslation()
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false)
 
-  const handleFileAction = (action: string) => {
-    const notice = getAttachmentActionNotice(action)
-    toast.info(t(notice.title), {
-      description: notice.description,
-    })
-  }
-
-  const handleSearchAction = () => {
-    const notice = getSearchActionNotice()
-    toast.info(t(notice.title))
-  }
-
   const handleClearMessages = () => {
     onClearMessages?.()
     setClearConfirmOpen(false)
@@ -94,61 +71,9 @@ export function PlaygroundInputTools({
 
   return (
     <>
-      <PromptInputTools className='bg-background/70 border-border/60 rounded-lg border p-1 shadow-xs'>
-        <Tooltip>
-          <DropdownMenu>
-            <TooltipTrigger
-              render={
-                <DropdownMenuTrigger
-                  render={
-                    <PromptInputButton
-                      aria-label={t('Attach')}
-                      className='text-muted-foreground hover:text-foreground hover:bg-muted/70 font-medium'
-                      disabled={disabled}
-                      variant='ghost'
-                    />
-                  }
-                >
-                  <PaperclipIcon size={16} />
-                </DropdownMenuTrigger>
-              }
-            />
-            <TooltipContent>
-              <p>{t('Attach')}</p>
-            </TooltipContent>
-            <DropdownMenuContent align='start'>
-              {ATTACHMENT_ACTIONS.map(({ action, icon: Icon, label }) => (
-                <DropdownMenuItem
-                  key={action}
-                  onClick={() => handleFileAction(action)}
-                >
-                  <Icon className='mr-2' size={16} />
-                  {t(label)}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <PromptInputButton
-                aria-label={t('Search')}
-                className='text-muted-foreground hover:text-foreground hover:bg-muted/70 font-medium'
-                disabled={disabled}
-                onClick={handleSearchAction}
-                variant='ghost'
-              >
-                <GlobeIcon size={16} />
-              </PromptInputButton>
-            }
-          />
-          <TooltipContent>
-            <p>{t('Search')}</p>
-          </TooltipContent>
-        </Tooltip>
-
+      {/* [user-ui] 去掉附件（上传文件/图片/截屏/拍照）与搜索按钮：官方未实现，点了只弹"功能开发中"
+          （审计 2.10 #1；官方文档 guide/feature-guide/user/api.md 也写明尚未实现）。工具条去掉自绘边框与阴影。 */}
+      <PromptInputTools className='gap-0.5'>
         <PlaygroundParameterPanel
           config={config}
           disabled={disabled}
@@ -179,9 +104,8 @@ export function PlaygroundInputTools({
 
       <ConfirmDialog
         destructive
-        desc={t(
-          'All playground messages saved in this browser will be removed. This cannot be undone.'
-        )}
+        // [user-ui] 改名"在线试用"（原文案为"游乐场消息"）
+        desc={t('playground.clear.description')}
         confirmText={t('Clear')}
         handleConfirm={handleClearMessages}
         open={clearConfirmOpen}
