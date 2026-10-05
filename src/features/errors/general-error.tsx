@@ -16,13 +16,16 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useNavigate, useRouter } from '@tanstack/react-router'
+import { useRouter } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-const FEEDBACK_URL = 'https://github.com/QuantumNous/new-api/issues'
+import { ErrorHomeAction } from './components/error-home-action'
+
+// [user-ui] 去掉上游 GitHub Issues 反馈链接（审计 3.3）：普通用户不该去上游项目提 issue，
+// 改为提示联系站点管理员，主按钮按登录状态回到控制台或首页。
 
 type GeneralErrorProps = React.HTMLAttributes<HTMLDivElement> & {
   minimal?: boolean
@@ -43,7 +46,6 @@ export function GeneralError({
   error,
 }: GeneralErrorProps) {
   const { t } = useTranslation()
-  const navigate = useNavigate()
   const { history } = useRouter()
   const status = getHttpStatus(error)
   const isRateLimited = status === 429
@@ -56,9 +58,10 @@ export function GeneralError({
 
   return (
     <div className={cn('h-svh w-full', className)}>
-      <div className='m-auto flex h-full w-full flex-col items-center justify-center gap-2'>
+      <div className='m-auto flex h-full w-full flex-col items-center justify-center gap-2 px-4'>
         {!minimal && (
-          <h1 className='text-[7rem] leading-tight font-bold'>
+          // [user-ui] 状态码用等宽数字字体（品牌规范：数字用 font-mono tabular-nums）
+          <h1 className='font-mono text-[7rem] leading-tight font-bold tabular-nums'>
             {status ?? 500}
           </h1>
         )}
@@ -68,7 +71,7 @@ export function GeneralError({
         </p>
         {!minimal && (
           <p className='text-muted-foreground text-center text-sm'>
-            {t('If this keeps happening, please report it on GitHub Issues.')}
+            {t('shell.error.contactAdmin')}
           </p>
         )}
         {!minimal && (
@@ -76,21 +79,7 @@ export function GeneralError({
             <Button variant='outline' onClick={() => history.go(-1)}>
               {t('Go Back')}
             </Button>
-            <Button
-              variant='outline'
-              render={
-                <a
-                  href={FEEDBACK_URL}
-                  target='_blank'
-                  rel='noopener noreferrer'
-                />
-              }
-            >
-              {t('Report an issue')}
-            </Button>
-            <Button onClick={() => navigate({ to: '/' })}>
-              {t('Back to Home')}
-            </Button>
+            <ErrorHomeAction />
           </div>
         )}
       </div>
