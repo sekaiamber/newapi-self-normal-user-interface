@@ -86,7 +86,8 @@ export function LogsFilterInput(props: ComponentProps<typeof Input>) {
     <Input
       {...props}
       autoComplete='off'
-      className={cn('h-8 min-w-0 text-sm leading-5', props.className)}
+      // [user-ui] 与下拉框、日期范围同高（h-9），一排筛选项上下对齐
+      className={cn('h-9 min-w-0 text-sm leading-5', props.className)}
     />
   )
 }

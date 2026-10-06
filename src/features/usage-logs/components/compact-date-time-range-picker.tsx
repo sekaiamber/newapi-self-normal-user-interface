@@ -128,13 +128,15 @@ export function CompactDateTimeRangePicker({
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger
         render={
+          // [user-ui] 外观与旁边的输入框一致（2px 输入框边、无硬投影），不用 outline 按钮：
+          // 按钮的深色边 + 投影放在一排输入框里显得高低不齐
           <Button
             type='button'
-            variant='outline'
+            variant='ghost'
             aria-label={presetName ? `${presetName} (${label})` : label}
             title={presetName ? label : undefined}
             className={cn(
-              'w-full justify-start gap-2 px-2.5 text-sm leading-5 font-normal tabular-nums',
+              'border-input bg-card hover:bg-card aria-expanded:border-edge aria-expanded:bg-card focus-visible:border-edge dark:bg-background dark:hover:bg-background dark:aria-expanded:bg-background w-full justify-start gap-2 rounded-md px-2.5 text-sm leading-5 font-normal tabular-nums',
               !start && !end && 'text-muted-foreground',
               className
             )}

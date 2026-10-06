@@ -238,7 +238,8 @@ it('keeps a selected group visible on focus and can clear it without choosing an
 it('keeps the compact input and masks the dropdown together with other sensitive filters', async () => {
   await renderFilter()
   const input = screen.getByRole('combobox', { name: GROUP_LABEL })
-  expect(input).toHaveClass('h-8', 'text-sm', 'leading-5')
+  // [user-ui] 筛选项统一 h-9（与下拉框、日期范围同高）
+  expect(input).toHaveClass('h-9', 'text-sm', 'leading-5')
   await userEvent.click(
     screen.getByRole('switch', {
       name: 'Hide sensitive info (for screenshots)',

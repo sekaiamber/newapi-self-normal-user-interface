@@ -385,7 +385,8 @@ export function CommonLogsFilterBar<TData>(
         aria-label={t('logs.group.label')}
         emptyText={t('logs.group.empty')}
         placeholder={t('logs.group.label')}
-        className='h-8 min-w-0 text-sm leading-5'
+        // [user-ui] 与其它筛选项同高（h-9）
+        className='h-9 min-w-0 text-sm leading-5'
         value={filters.group || ''}
         onValueChange={(value) => handleChange('group', value ?? '')}
         onKeyDown={handleKeyDown}
